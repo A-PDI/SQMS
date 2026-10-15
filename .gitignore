@@ -8,6 +8,7 @@ coverage/
 .env.*
 !.env.example
 !.env.test.example
+!.env.compose.example
 packages/db/src/generated/
 playwright-report/
 test-results/
