@@ -38,3 +38,16 @@ export function relativeDays(value: string | null | undefined): string {
   if (days === 0) return "today";
   return days > 0 ? `in ${days} d` : `${-days} d ago`;
 }
+
+const OP_LABEL: Record<string, string> = { eq: "=", neq: "≠", in: "in", nin: "not in", gte: "≥", lte: "≤" };
+
+/** Readable form of an applicability rule condition ({field, op, value} | {all} | {any} | {not} | {} = always). */
+export function describeCondition(c: unknown): string {
+  if (!c || typeof c !== "object" || Object.keys(c).length === 0) return "always";
+  const n = c as { field?: string; op?: string; value?: unknown; all?: unknown[]; any?: unknown[]; not?: unknown };
+  if (Array.isArray(n.all)) return n.all.length ? `(${n.all.map(describeCondition).join(" AND ")})` : "always";
+  if (Array.isArray(n.any)) return n.any.length ? `(${n.any.map(describeCondition).join(" OR ")})` : "never";
+  if (n.not !== undefined) return `NOT ${describeCondition(n.not)}`;
+  const v = Array.isArray(n.value) ? `[${n.value.join(", ")}]` : String(n.value);
+  return `${n.field} ${OP_LABEL[n.op ?? ""] ?? n.op} ${v}`;
+}

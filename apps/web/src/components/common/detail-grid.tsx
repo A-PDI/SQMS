@@ -7,7 +7,7 @@ export interface DetailItem {
   wide?: boolean;
 }
 
-export function DetailGrid({ items, columns = 3, className }: { items: (DetailItem | false | null | undefined)[]; columns?: 2 | 3 | 4; className?: string }) {
+export function DetailGrid({ items, columns = 3, className }: { items: (DetailItem | false | null | undefined | "" | 0)[]; columns?: 2 | 3 | 4; className?: string }) {
   const cols = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" }[columns];
   return (
     <dl className={cn("grid grid-cols-1 gap-x-6 gap-y-3", cols, className)}>

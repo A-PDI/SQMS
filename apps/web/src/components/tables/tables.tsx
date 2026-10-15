@@ -1,6 +1,6 @@
 "use client";
 
-import { CHANGE_REQUEST_STATUS, DEVIATION_STATUS, DOCUMENT_STATUS, NCR_SEVERITY, NCR_STATUS, PROJECT_STAGE, SCAR_STATUS, SOURCING_PATHWAY, SOURCING_PROJECT_STATUS, SUPPLIER_PRODUCT_STATUS, humanize } from "@sqms/shared";
+import { CHANGE_REQUEST_STATUS, DEVIATION_STATUS, DOCUMENT_STATUS, NCR_SEVERITY, NCR_STATUS, PRODUCT_QUALIFICATION_STATUS, PROJECT_STAGE, SCAR_STATUS, SOURCING_PATHWAY, SOURCING_PROJECT_STATUS, SUPPLIER_PRODUCT_STATUS, humanize } from "@sqms/shared";
 import { DataTable, type FilterDef } from "@/components/data/data-table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -230,6 +230,38 @@ export function SupplierProductsTable({ baseQuery, syncUrl = false }: Common) {
         { key: "site", header: "Site", cell: (r) => ref(r.site, "siteCode") },
         { key: "status", header: "Approval status", cell: (r) => <StatusBadge status={String(r.status)} /> },
         { key: "approved", header: "Approved", cell: (r) => formatDate(r.approvedAt as string | null) },
+      ]}
+    />
+  );
+}
+
+export function QualificationsTable({ baseQuery, syncUrl = true, filters = true, savedViews = true }: Common) {
+  return (
+    <DataTable<{ id: string } & Base>
+      endpoint="/qualifications"
+      queryKey="qualifications"
+      baseQuery={baseQuery}
+      syncUrl={syncUrl}
+      savedViewsModule={savedViews ? "qualifications" : undefined}
+      searchPlaceholder="Number or title"
+      rowHref={(r) => `/qualifications/${r.id}`}
+      filters={filters ? [{ key: "status", label: "Status", options: toOptions(PRODUCT_QUALIFICATION_STATUS) }] : []}
+      columns={[
+        { key: "n", header: "Qualification", sortKey: "number", cell: (r) => String(r.number) },
+        { key: "title", header: "Title", cell: (r) => <span className="line-clamp-2">{String(r.title)}</span> },
+        { key: "supplier", header: "Supplier", cell: (r) => ref(r.supplier, "name") },
+        {
+          key: "config",
+          header: "Configuration",
+          cell: (r) => {
+            const rev = r.configurationRevision as { revisionLabel: string; configuration: { configCode: string } } | null;
+            return rev ? `${rev.configuration.configCode} rev ${rev.revisionLabel}` : "-";
+          },
+        },
+        { key: "origin", header: "Origin", cell: (r) => (r.changeRequestId ? <Badge tone="info">Change request</Badge> : r.pathway ? <Badge>Pathway {String(r.pathway)}</Badge> : "-") },
+        { key: "risk", header: "Risk", cell: (r) => <StatusBadge status={(r.riskLevel as string | null) ?? null} /> },
+        { key: "status", header: "Status", sortKey: "status", cell: (r) => <StatusBadge status={String(r.status)} /> },
+        { key: "updated", header: "Updated", sortKey: "updatedAt", cell: (r) => formatDateTime(r.updatedAt as string) },
       ]}
     />
   );
