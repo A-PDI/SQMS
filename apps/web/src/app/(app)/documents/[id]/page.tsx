@@ -24,6 +24,7 @@ import { Input, Select, Textarea } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { api, ApiError, fileDownloadUrl, filePreviewUrl } from "@/lib/api";
 import { formatBytes, formatDate, formatDateTime } from "@/lib/format";
+import { entityHref } from "@/lib/links";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -78,19 +79,6 @@ interface Doc {
   supersededBy: { id: string; reason: string | null; supersedingDocument: { id: string; docNumber: string; title: string } }[];
   supersedes: { id: string; reason: string | null; supersededDocument: { id: string; docNumber: string; title: string } }[];
 }
-
-const ENTITY_ROUTES: Record<string, (id: string) => string> = {
-  SUPPLIER: (id) => `/suppliers/${id}`,
-  INTERNAL_PART: (id) => `/products/${id}`,
-  SUPPLIER_PRODUCT: (id) => `/products/supplier-products/${id}`,
-  CONFIGURATION_REVISION: (id) => `/configurations/revisions/${id}`,
-  SOURCING_PROJECT: (id) => `/projects/${id}`,
-  PRODUCT_QUALIFICATION: (id) => `/qualifications/${id}`,
-  CHANGE_REQUEST: (id) => `/changes/${id}`,
-  NCR: (id) => `/quality/ncrs/${id}`,
-  SCAR: (id) => `/quality/scars/${id}`,
-  DEVIATION: (id) => `/quality/deviations/${id}`,
-};
 
 const LINK_PICKERS: Record<string, { endpoint: string; label: (r: Record<string, unknown>) => string }> = {
   SUPPLIER: { endpoint: "/suppliers", label: (r) => `${r.name} (${r.supplierNumber})` },
@@ -544,7 +532,7 @@ function LinksCard({ doc, editable, onChanged }: { doc: Doc; editable: boolean; 
         ) : (
           <ul className="space-y-1">
             {doc.links.map((l) => {
-              const href = ENTITY_ROUTES[l.entityType]?.(l.entityId);
+              const href = entityHref(l.entityType, l.entityId);
               return (
                 <li key={l.id} className="flex items-center gap-2 text-xs">
                   <Link2 className="size-3.5 text-muted-foreground" />

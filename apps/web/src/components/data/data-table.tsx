@@ -227,7 +227,7 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
                 </TR>
               ))}
             {data?.items.map((row) => (
-              <TR key={row.id} className={cn(rowHref && "cursor-pointer")} onClick={rowHref ? (e) => !(e.target as HTMLElement).closest("a,button") && router.push(rowHref(row)) : undefined}>
+              <TR key={row.id} className={cn(rowHref && "cursor-pointer")} onClick={rowHref ? (e) => e.currentTarget.contains(e.target as Node) && !(e.target as HTMLElement).closest("a,button,input,textarea,select,label") && router.push(rowHref(row)) : undefined}>
                 {columns.map((c, i) => (
                   <TD key={c.key} className={c.className}>
                     {i === 0 && rowHref ? (

@@ -18,6 +18,7 @@ import { ConfigurationsService } from "../configurations/configurations.service"
 import { QualificationsService } from "../qualifications/qualifications.service";
 import { WorkflowService, type WorkflowSubjectHandler } from "../workflow/workflow.service";
 import type { ChangeRequestListQuery, CreateChangeRequestDto, ImpactAssessmentDto, RequalificationDecisionDto, UpdateChangeRequestDto } from "./change-requests.dto";
+import { loadRequirements } from "../sourcing/requirements.query";
 
 const OPEN_STATUSES: ChangeRequestStatus[] = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "INFO_REQUIRED", "VALIDATION_REQUIRED"];
 const REVIEW_STATUSES: ChangeRequestStatus[] = ["SUBMITTED", "UNDER_REVIEW", "VALIDATION_REQUIRED"];
@@ -162,11 +163,7 @@ export class ChangeRequestsService implements OnModuleInit, WorkflowSubjectHandl
       },
     });
     if (!cr || (!scope.isInternal && (!cr.supplierVisible || cr.supplierId !== scope.supplierId))) throw new NotFoundError("Change request");
-    const requirements = await this.db.client.requiredDocument.findMany({
-      where: { changeRequestId: id },
-      include: { documentType: { select: { id: true, code: true, name: true, acronym: true } }, document: { select: { id: true, docNumber: true, title: true, status: true } } },
-      orderBy: { createdAt: "asc" },
-    });
+    const requirements = await loadRequirements(this.db, { changeRequestId: id });
     const { categories, impactAssessments, ...rest } = cr;
     const base = {
       ...rest,

@@ -7,6 +7,7 @@ import { AccessScope } from "../../common/auth/access-scope";
 import { ActivityService } from "../../common/audit/activity.service";
 import { AuditService, diffControlled } from "../../common/audit/audit.service";
 import { DbService, type AfterCommit, type Tx } from "../../common/db/db.service";
+import { loadRequirements } from "./requirements.query";
 import { BusinessRuleError, ForbiddenError, InvalidTransitionError, NotFoundError, StaleVersionError } from "../../common/errors/app-errors";
 import { toDate } from "../../common/http/dto-helpers";
 import { pageArgs, sortArg, trimQ, type Page } from "../../common/http/pagination";
@@ -435,18 +436,7 @@ export class SourcingService implements OnModuleInit, WorkflowSubjectHandler {
   }
 
   async requirements(projectId: string) {
-    const reqs = await this.db.client.requiredDocument.findMany({
-      where: { projectId },
-      include: {
-        documentType: { select: { id: true, code: true, name: true, acronym: true, category: true, nativeFormKey: true, nativeModule: true, allowUpload: true, supplierVisibility: true } },
-        document: { select: { id: true, docNumber: true, title: true, status: true, latestRevision: { select: { id: true, revisionLabel: true, status: true } }, releasedRevision: { select: { id: true, revisionLabel: true } } } },
-        acceptedRevision: { select: { id: true, revisionLabel: true } },
-      },
-    });
-    const users = await this.db.client.user.findMany({ where: { id: { in: reqs.flatMap((r) => [r.assignedToId, r.waivedById].filter((x): x is string => !!x)) } }, select: { id: true, displayName: true } });
-    return reqs
-      .map((r) => ({ ...r, assignedTo: users.find((u) => u.id === r.assignedToId) ?? null, waivedBy: users.find((u) => u.id === r.waivedById) ?? null, overdue: !!r.dueDate && r.dueDate < new Date() && (r.status === "OPEN" || r.status === "REJECTED") }))
-      .sort((a, b) => a.documentType.code.localeCompare(b.documentType.code));
+    return loadRequirements(this.db, { projectId });
   }
 
   // ------------------------------------------------------------------ edit, risk, lifecycle
