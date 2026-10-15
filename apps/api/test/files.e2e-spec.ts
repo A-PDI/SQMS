@@ -1,10 +1,8 @@
 import { createHash } from "node:crypto";
 import { EICAR_TEST_STRING } from "@sqms/server-core";
+import { PDF_BYTES } from "./fixtures";
 import { createTeam, expectStatus, startApp, uniq, waitFor, type Team, type TestContext } from "./helpers";
 
-export const PDF_BYTES = Buffer.from(
-  "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 200 200]/Parent 2 0 R>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n",
-);
 
 describe("Secure file upload, scanning and retrieval", () => {
   let ctx: TestContext;

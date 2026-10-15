@@ -39,9 +39,13 @@ export class DbService {
    */
   async tx<T>(fn: (tx: Tx, after: AfterCommit) => Promise<T>, options: { timeoutMs?: number } = {}): Promise<T> {
     const hooks: (() => Promise<unknown> | unknown)[] = [];
+    // READ COMMITTED: every statement sees the latest committed data, so reads performed after acquiring a row lock
+    // (SELECT ... FOR UPDATE) observe concurrent transactions that committed while we waited. Under REPEATABLE READ
+    // the snapshot could predate the lock and serialized decisions would act on stale state.
     const result = await this.client.$transaction((tx) => fn(tx, { add: (h) => hooks.push(h) }), {
       maxWait: 10_000,
       timeout: options.timeoutMs ?? 30_000,
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
     });
     for (const hook of hooks) {
       try {
