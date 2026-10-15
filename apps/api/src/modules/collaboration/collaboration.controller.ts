@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiOperation, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
+import { IsOptional, IsString, Matches, MaxLength } from "class-validator";
+import { DbService } from "../../common/db/db.service";
 import { PERMISSIONS as P } from "@sqms/shared";
 import type { Actor } from "../../common/auth/actor";
 import { AudienceScope, CurrentActor, RequirePermissions } from "../../common/auth/decorators";
@@ -162,5 +164,35 @@ export class SavedViewsController {
   @HttpCode(204)
   remove(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
     return this.collab.deleteSavedView(actor, id);
+  }
+}
+
+class DirectoryQuery {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) q?: string;
+  @ApiPropertyOptional() @IsOptional() @Matches(/^[A-Z_]{2,60}$/) roleKey?: string;
+}
+
+/** Minimal internal user directory for people pickers (no administrative details). */
+@ApiTags("directory")
+@Controller("directory")
+export class DirectoryController {
+  constructor(private readonly db: DbService) {}
+
+  @Get("users")
+  @RequirePermissions(P.TASK_READ)
+  async users(@Query() q: DirectoryQuery) {
+    const term = q.q?.trim();
+    const users = await this.db.client.user.findMany({
+      where: {
+        userType: "INTERNAL",
+        status: "ACTIVE",
+        ...(term ? { OR: [{ displayName: { contains: term } }, { email: { contains: term } }] } : {}),
+        ...(q.roleKey ? { memberships: { some: { status: "ACTIVE", roles: { some: { role: { key: q.roleKey } } } } } } : {}),
+      },
+      orderBy: { displayName: "asc" },
+      take: 50,
+      select: { id: true, displayName: true, email: true, jobTitle: true, memberships: { where: { status: "ACTIVE" }, select: { roles: { select: { role: { select: { key: true } } } } } } },
+    });
+    return users.map(({ memberships, ...u }) => ({ ...u, roles: [...new Set(memberships.flatMap((m) => m.roles.map((r) => r.role.key)))] }));
   }
 }

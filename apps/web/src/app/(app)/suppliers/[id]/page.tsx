@@ -196,7 +196,7 @@ export default function SupplierDetailPage() {
           </>
         }
       />
-      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <div className="grid gap-4 2xl:grid-cols-[1fr_360px]">
         <div className="min-w-0">
           <Tabs defaultValue="overview">
             <TabsList>
