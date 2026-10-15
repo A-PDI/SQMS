@@ -40,8 +40,8 @@ publishes a port; Mailpit's UI is bound to 127.0.0.1 for evaluation.
 
 1. Back up the database and bucket ([backup and restore](backup-restore.md)).
 2. Pull the new release and rebuild: `docker compose --env-file .env.compose build`.
-3. `docker compose --env-file .env.compose up -d` - the `migrate` job runs before the API and worker start; a failed
-   migration keeps the old containers running and the new ones from starting.
+3. `docker compose --env-file .env.compose up -d` - the `migrate` job runs first; the API and worker only start after
+   it completes successfully (on failure, inspect `docker compose --env-file .env.compose logs migrate`).
 
 Migrations are forward-only and created with `prisma migrate dev`; never edit an applied migration.
 
