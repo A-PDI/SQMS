@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { humanize } from "@sqms/shared";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ErrorAlert, PageLoading } from "@/components/ui/feedback";
@@ -57,9 +59,14 @@ function Breakdown({ title, data, href }: { title: string; data: Record<string, 
 }
 
 export default function DashboardPage() {
-  const { me } = useSession();
-  const q = useQuery({ queryKey: ["dashboard"], queryFn: () => api<Dashboard>("/dashboard"), refetchInterval: 120_000 });
-  if (q.isLoading) return <PageLoading />;
+  const { me, isInternal } = useSession();
+  const router = useRouter();
+  // Supplier users land on the supplier portal; the internal dashboard is never requested for them.
+  useEffect(() => {
+    if (!isInternal) router.replace("/portal");
+  }, [isInternal, router]);
+  const q = useQuery({ queryKey: ["dashboard"], queryFn: () => api<Dashboard>("/dashboard"), refetchInterval: 120_000, enabled: isInternal });
+  if (!isInternal || q.isLoading) return <PageLoading />;
   if (q.error || !q.data) return <ErrorAlert error={q.error} />;
   const d = q.data;
   const ncrs = Object.values(d.quality.openNcrsBySeverity).reduce((a, b) => a + b, 0);

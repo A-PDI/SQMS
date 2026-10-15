@@ -21,6 +21,8 @@ export interface Me {
   displayName: string;
   timezone: string;
   jobTitle: string | null;
+  phone?: string | null;
+  lastLoginAt?: string | null;
   userType: "INTERNAL" | "EXTERNAL";
   organization: { id: string; name: string; type: "INTERNAL" | "SUPPLIER" };
   supplierId: string | null;
