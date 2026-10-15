@@ -6,6 +6,7 @@ import type { Actor } from "../../common/auth/actor";
 import { AccessScope } from "../../common/auth/access-scope";
 import { ActivityService } from "../../common/audit/activity.service";
 import { AuditService, diffControlled } from "../../common/audit/audit.service";
+import { RequestContext } from "../../common/context/request-context";
 import { DbService, type AfterCommit, type Tx } from "../../common/db/db.service";
 import { BusinessRuleError, ConflictError, ForbiddenError, InvalidTransitionError, NotFoundError, StaleVersionError } from "../../common/errors/app-errors";
 import { toDate } from "../../common/http/dto-helpers";
@@ -356,6 +357,12 @@ export class DocumentsService implements OnModuleInit, WorkflowSubjectHandler {
     await tx.requiredDocument.updateMany({
       where: { id: { in: affected.map((a) => a.id) } },
       data: { status, ...(status === "ACCEPTED" ? { acceptedRevisionId: revisionId, acceptedAt: new Date() } : {}), version: { increment: 1 } },
+    });
+    // Submission tasks follow the requirement: in progress while under review, done once accepted, reopened on rejection.
+    const taskStatus = status === "ACCEPTED" ? "DONE" : status === "SUBMITTED" ? "IN_PROGRESS" : "OPEN";
+    await tx.task.updateMany({
+      where: { requiredDocumentId: { in: affected.map((a) => a.id) }, type: "DOCUMENT_SUBMISSION", status: { in: ["OPEN", "IN_PROGRESS"] } },
+      data: { status: taskStatus, ...(taskStatus === "DONE" ? { completedAt: new Date(), completedById: RequestContext.get()?.actor?.userId ?? null } : {}), version: { increment: 1 } },
     });
   }
 
