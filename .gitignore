@@ -18,3 +18,7 @@ e2e/.auth/
 infra/data/
 .worker-test.log
 .worker-test.pid
+
+# Next.js
+next-env.d.ts
+*.tsbuildinfo
