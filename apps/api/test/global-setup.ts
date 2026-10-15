@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { existsSync, openSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createPrismaClient, seedReferenceData } from "@sqms/db";
 import IORedis from "ioredis";
@@ -38,4 +39,12 @@ export default async function globalSetup(): Promise<void> {
   const redis = new IORedis(TEST_ENV.REDIS_URL);
   await redis.flushdb();
   redis.disconnect();
+
+  // Start the real background worker (malware scanning, email, maintenance) against the test environment.
+  const workerMain = path.resolve(__dirname, "../../worker/dist/main.js");
+  if (!existsSync(workerMain)) throw new Error("Build the worker first: pnpm --filter @sqms/worker run build");
+  const logFd = openSync(path.resolve(__dirname, "../.worker-test.log"), "w");
+  const child = spawn(process.execPath, [workerMain], { env: { ...process.env, ...TEST_ENV }, stdio: ["ignore", logFd, logFd], detached: true });
+  child.unref();
+  writeFileSync(path.resolve(__dirname, "../.worker-test.pid"), String(child.pid));
 }

@@ -51,5 +51,5 @@ export function createPrismaClient(databaseUrl: string, options: CreatePrismaCli
     ssl: cfg.ssl,
     timezone: "Z",
   });
-  return new PrismaClient({ adapter, log: options.logQueries ? ["query", "warn", "error"] : ["warn", "error"] });
+  return new PrismaClient({ adapter, log: options.logQueries ? ["query", "warn", "error"] : ["warn"] });
 }

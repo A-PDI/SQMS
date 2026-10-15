@@ -16,3 +16,5 @@ e2e/.auth/
 .DS_Store
 .turbo/
 infra/data/
+.worker-test.log
+.worker-test.pid
