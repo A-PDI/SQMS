@@ -1,0 +1,53 @@
+# SQMS gateway for the Render Blueprint (render.yaml): the only public service. Render terminates TLS and forwards
+# plain HTTP to $PORT; the API, the web app and the mail viewer are reached over Render's private network.
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:10000} {
+	encode zstd gzip
+
+	# Uploads stream through to the API, which enforces the configured per-type limits.
+	request_body {
+		max_size 1GB
+	}
+
+	# Render health check; answers without depending on the other services.
+	handle /gateway-health {
+		respond "ok" 200
+	}
+
+	handle /api/* {
+		# Render's edge sets CF-Connecting-IP to the visitor's address. The API trusts exactly one proxy hop (this
+		# gateway), so passing it as X-Forwarded-For gives rate limits and the audit trail the real client address.
+		@edge header CF-Connecting-IP *
+		handle @edge {
+			reverse_proxy {$SQMS_API_HOST}:{$SQMS_API_PORT:4000} {
+				header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+			}
+		}
+		handle {
+			reverse_proxy {$SQMS_API_HOST}:{$SQMS_API_PORT:4000}
+		}
+	}
+
+	# Mailpit (evaluation mail inbox), protected by its own sign-in (MP_UI_AUTH).
+	handle /mailpit* {
+		reverse_proxy {$SQMS_MAILPIT_HOST}:{$SQMS_MAILPIT_PORT:8025}
+	}
+
+	handle {
+		reverse_proxy {$SQMS_WEB_HOST}:{$SQMS_WEB_PORT:3000}
+	}
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
