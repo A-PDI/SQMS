@@ -1,0 +1,19 @@
+# Keep the build context small and free of local state and secrets.
+**/node_modules
+**/dist
+**/.next
+**/out
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+.git
+.env
+.env.*
+!.env.example
+!.env.compose.example
+packages/db/src/generated
+e2e/playwright-report
+e2e/test-results
+e2e/.auth
+infra/data
+docs

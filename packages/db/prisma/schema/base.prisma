@@ -1,0 +1,72 @@
+// SQMS data model - base configuration.
+// Conventions:
+//  * Primary keys are immutable UUIDv7 strings (CHAR(36)); human-readable identifiers live in separate unique columns.
+//  * Table names are snake_case; column names follow the Prisma field names.
+//  * All timestamps are stored in UTC (DATETIME(3)).
+//  * Business records use soft deletion/archival (archivedAt) so approval and audit history is preserved.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+/// Entity types used by polymorphic links (document links, comments, activity, tasks, attachments).
+enum EntityType {
+  ORGANIZATION
+  USER
+  SUPPLIER
+  SUPPLIER_SITE
+  CONTACT
+  SUPPLIER_CERTIFICATION
+  INTERNAL_PART
+  SUPPLIER_PART
+  SUPPLIER_PRODUCT
+  PRODUCT_CONFIGURATION
+  CONFIGURATION_REVISION
+  SOURCING_PROJECT
+  RISK_ASSESSMENT
+  DOCUMENT_TYPE
+  DOCUMENT_TEMPLATE
+  TEMPLATE_REVISION
+  DOCUMENT
+  DOCUMENT_REVISION
+  REQUIRED_DOCUMENT
+  FILE
+  SUPPLIER_QUALIFICATION
+  PRODUCT_QUALIFICATION
+  FIRST_ARTICLE_INSPECTION
+  TEST_RECORD
+  CHANGE_REQUEST
+  DEVIATION
+  NCR
+  SCAR
+  WORKFLOW_INSTANCE
+  APPROVAL_ASSIGNMENT
+  TASK
+  APPLICABILITY_POLICY
+  SYSTEM
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum Visibility {
+  INTERNAL
+  SUPPLIER
+}

@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* Runtime-overridable brand tokens (set from the branding system setting). */
+:root {
+  --primary: #1f3a5f;
+  --primary-foreground: #ffffff;
+  --accent: #2b6cb0;
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --foreground: #111827;
+  --muted: #f1f3f6;
+  --muted-foreground: #5b6472;
+  --border: #dde1e7;
+  --ring: #2b6cb0;
+  --destructive: #b42318;
+  --success: #067647;
+  --warning: #b54708;
+  --info: #175cd3;
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --radius-md: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html,
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+  body {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}

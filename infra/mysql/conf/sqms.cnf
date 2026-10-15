@@ -1,0 +1,9 @@
+[mysqld]
+# Store and compare timestamps in UTC.
+default-time-zone = '+00:00'
+character-set-server = utf8mb4
+collation-server = utf8mb4_0900_ai_ci
+# Required so the migration account (without SUPER) can create the audit-protection triggers while binary logging is on.
+log_bin_trust_function_creators = 1
+# Minimum token length for FULLTEXT search on InnoDB (part numbers can be short).
+innodb_ft_min_token_size = 2

@@ -1,0 +1,262 @@
+# SQMS full stack (production-mode images) for evaluation and as a reference deployment.
+#   cp .env.compose.example .env.compose   # then replace every change-me value
+#   docker compose --env-file .env.compose up -d --build
+#   open http://localhost:8080
+# Only the gateway is published. MySQL, Redis, MinIO and ClamAV are reachable solely on the internal network.
+# Optional: --profile demo also loads fictional demo data (never use in production).
+
+name: sqms
+
+x-app-env: &app-env
+  NODE_ENV: production
+  APP_ORIGINS: ${SQMS_PUBLIC_URL:?set SQMS_PUBLIC_URL}
+  APP_BASE_URL: ${SQMS_PUBLIC_URL}
+  TRUST_PROXY: "true"
+  COOKIE_SECURE: "true"
+  DATABASE_URL: mysql://${SQMS_APP_USER:-sqms_app}:${SQMS_APP_PASSWORD:?set SQMS_APP_PASSWORD}@mysql:3306/${SQMS_DB_NAME:-sqms}
+  DATABASE_CONNECTION_LIMIT: ${DATABASE_CONNECTION_LIMIT:-10}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD}@redis:6379
+  CSRF_SECRET: ${CSRF_SECRET:?set CSRF_SECRET (at least 32 random characters)}
+  SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-480}
+  SESSION_ABSOLUTE_HOURS: ${SESSION_ABSOLUTE_HOURS:-72}
+  LOGIN_MAX_FAILURES: ${LOGIN_MAX_FAILURES:-5}
+  LOGIN_LOCKOUT_MINUTES: ${LOGIN_LOCKOUT_MINUTES:-15}
+  LOGIN_RATE_LIMIT_PER_MINUTE: ${LOGIN_RATE_LIMIT_PER_MINUTE:-10}
+  API_RATE_LIMIT_PER_MINUTE: ${API_RATE_LIMIT_PER_MINUTE:-600}
+  SUPPLIER_PORTAL_ENABLED: ${SUPPLIER_PORTAL_ENABLED:-false}
+  S3_ENDPOINT: http://minio:9000
+  S3_REGION: us-east-1
+  S3_BUCKET: ${S3_BUCKET:-sqms-files}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY}
+  S3_FORCE_PATH_STYLE: "true"
+  S3_AUTO_CREATE_BUCKET: "false"
+  SCANNER_MODE: clamav
+  CLAMAV_HOST: clamav
+  CLAMAV_PORT: "3310"
+  MAIL_TRANSPORT: ${MAIL_TRANSPORT:-smtp}
+  SMTP_HOST: ${SMTP_HOST:-mailpit}
+  SMTP_PORT: ${SMTP_PORT:-1025}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-false}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  MAIL_FROM: ${MAIL_FROM:-SQMS <no-reply@sqms.local>}
+  LOG_JSON: "true"
+  LOG_LEVEL: ${LOG_LEVEL:-log}
+  SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+
+x-build: &build
+  context: .
+  dockerfile: Dockerfile
+  secrets: [build_ca]
+
+services:
+  mysql:
+    image: mysql:8.4.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+      SQMS_DB_NAME: ${SQMS_DB_NAME:-sqms}
+      SQMS_MIGRATOR_USER: ${SQMS_MIGRATOR_USER:-sqms_migrator}
+      SQMS_MIGRATOR_PASSWORD: ${SQMS_MIGRATOR_PASSWORD:?set SQMS_MIGRATOR_PASSWORD}
+      SQMS_APP_USER: ${SQMS_APP_USER:-sqms_app}
+      SQMS_APP_PASSWORD: ${SQMS_APP_PASSWORD}
+      SQMS_REPORTER_PASSWORD: ${SQMS_REPORTER_PASSWORD:?set SQMS_REPORTER_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./infra/mysql/conf/sqms.cnf:/etc/mysql/conf.d/sqms.cnf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks: [backend]
+
+  redis:
+    image: redis:7.4.11
+    restart: unless-stopped
+    # BullMQ requires noeviction; AOF keeps queued jobs across restarts.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks: [backend]
+
+  minio:
+    build:
+      context: ./infra/minio
+      secrets: [build_ca]
+    image: sqms/minio:local
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER: "off"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks: [backend]
+
+  minio-init:
+    image: sqms/minio:local
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["sqms-init-bucket"]
+    environment:
+      MINIO_URL: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET:-sqms-files}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    restart: "no"
+    networks: [backend]
+
+  clamav:
+    image: clamav/clamav:1.5.4
+    restart: unless-stopped
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+    networks: [backend]
+
+  # Local SMTP sink for evaluation; replace SMTP_* with your mail relay in production.
+  mailpit:
+    image: axllent/mailpit:v1.31.5
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    networks: [backend]
+
+  migrate:
+    build:
+      <<: *build
+      target: migrate
+    image: sqms/migrate:local
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: mysql://${SQMS_APP_USER:-sqms_app}:${SQMS_APP_PASSWORD}@mysql:3306/${SQMS_DB_NAME:-sqms}
+      MIGRATION_DATABASE_URL: mysql://${SQMS_MIGRATOR_USER:-sqms_migrator}:${SQMS_MIGRATOR_PASSWORD}@mysql:3306/${SQMS_DB_NAME:-sqms}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-}
+      SEED_INTERNAL_ORG_NAME: ${SEED_INTERNAL_ORG_NAME:-}
+    restart: "no"
+    networks: [backend]
+
+  api:
+    build:
+      <<: *build
+      target: api
+    image: sqms/api:local
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+      PORT: "4000"
+    networks: [backend, frontend]
+
+  worker:
+    build:
+      <<: *build
+      target: worker
+    image: sqms/worker:local
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    networks: [backend]
+
+  web:
+    build:
+      <<: *build
+      target: web
+    image: sqms/web:local
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+    networks: [frontend]
+
+  gateway:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    depends_on: [api, web]
+    environment:
+      SQMS_SITE_ADDRESS: ${SQMS_SITE_ADDRESS:-:8080}
+    ports:
+      - "${SQMS_HTTP_PORT:-8080}:8080"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [frontend]
+
+  # Opt-in fictional demo data: docker compose --env-file .env.compose --profile demo run --rm seed-demo
+  seed-demo:
+    profiles: [demo]
+    image: sqms/migrate:local
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    entrypoint: ["node", "dist/seed-demo.js"]
+    working_dir: /repo/apps/api
+    environment:
+      <<: *app-env
+      # The demo seed refuses NODE_ENV=production by design; this one-shot job runs in development mode only.
+      NODE_ENV: development
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
+    restart: "no"
+    networks: [backend]
+
+networks:
+  backend: {}
+  frontend: {}
+
+volumes:
+  mysql-data:
+  redis-data:
+  minio-data:
+  clamav-data:
+  caddy-data:
+  caddy-config:
+
+secrets:
+  # Optional root CA for networks with TLS inspection during image builds (empty file = not used).
+  build_ca:
+    file: ${SQMS_BUILD_CA_FILE:-./infra/docker/no-extra-ca.pem}

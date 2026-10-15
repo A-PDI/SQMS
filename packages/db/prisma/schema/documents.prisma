@@ -1,0 +1,498 @@
+// Document type catalog, templates, template revisions, native form definitions,
+// document records, revisions, files, links, shares, releases, acknowledgments, supersession, retention.
+
+enum DocumentCategory {
+  INTAKE
+  SUPPLIER_ONBOARDING
+  ENGINEERING
+  VALIDATION
+  OPERATIONS
+  GOVERNANCE
+}
+
+/// Distinguishes company-defined forms from externally standardized artifacts (e.g. AIAG PPAP elements).
+enum DocumentTypeOrigin {
+  COMPANY_DEFINED
+  EXTERNAL_STANDARD
+  COMPANY_DEFINED_STANDARD_ALIGNED
+}
+
+enum SupplierVisibility {
+  INTERNAL_ONLY
+  SUPPLIER_VIEW_RELEASED
+  SUPPLIER_CONTRIBUTE
+}
+
+enum LifecycleStatus {
+  ACTIVE
+  OBSOLETE
+  SUPERSEDED
+}
+
+enum TemplateRevisionStatus {
+  DRAFT
+  EFFECTIVE
+  SUPERSEDED
+  OBSOLETE
+}
+
+enum FormVersionStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum DocumentStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  RELEASED
+  SUPERSEDED
+  OBSOLETE
+  REJECTED
+}
+
+enum SubmissionMethod {
+  NATIVE_FORM
+  UPLOAD
+}
+
+enum FileStatus {
+  UPLOADING
+  QUARANTINED
+  CLEAN
+  INFECTED
+  SCAN_FAILED
+  REJECTED
+  DELETED
+}
+
+enum FileRole {
+  PRIMARY
+  SUPPORTING
+}
+
+enum FileCategory {
+  DOCUMENT
+  SPREADSHEET
+  DATA
+  IMAGE
+  CAD
+  ARCHIVE
+  OTHER
+}
+
+enum RetentionTrigger {
+  FROM_CREATION
+  FROM_RELEASE
+  FROM_SUPERSESSION
+  FROM_CLOSURE
+  UNDEFINED
+}
+
+model RetentionPolicy {
+  id               String           @id @default(uuid(7)) @db.Char(36)
+  code             String           @unique @db.VarChar(40)
+  name             String           @db.VarChar(160)
+  description      String?          @db.Text
+  trigger          RetentionTrigger @default(UNDEFINED)
+  /// Null means the period has not been defined by company policy. The system does not invent legal periods.
+  retentionMonths  Int?
+  dispositionAction String?         @db.VarChar(120)
+  isActive         Boolean          @default(true)
+  updatedById      String?          @db.Char(36)
+  createdAt        DateTime         @default(now()) @db.DateTime(3)
+  updatedAt        DateTime         @updatedAt @db.DateTime(3)
+
+  documentTypes DocumentType[]
+
+  @@map("retention_policies")
+}
+
+model DocumentType {
+  id                    String             @id @default(uuid(7)) @db.Char(36)
+  code                  String             @unique @db.VarChar(20)
+  name                  String             @db.VarChar(200)
+  acronym               String?            @db.VarChar(30)
+  category              DocumentCategory
+  origin                DocumentTypeOrigin @default(COMPANY_DEFINED)
+  externalStandardRef   String?            @db.VarChar(300)
+  description           String             @db.Text
+  purpose               String?            @db.Text
+  responsibleDepartment String             @db.VarChar(120)
+  typicalPreparer       String             @db.VarChar(160)
+  /// Key of the workflow definition used to review/approve documents of this type.
+  workflowKey           String?            @db.VarChar(80)
+  /// Sourcing pathways this type commonly applies to, e.g. ["A","B","C"]. Authoritative rules live in applicability policies.
+  applicablePathways    Json
+  applicabilityConditions String?          @db.Text
+  riskRuleSummary       String?            @db.Text
+  ownerRoleKey          String?            @db.VarChar(60)
+  ownerUserId           String?            @db.Char(36)
+  approvalRequirements  String?            @db.Text
+  /// Role keys required to approve documents of this type (used when no explicit workflow is configured).
+  approverRoleKeys      Json
+  retentionPolicyId     String?            @db.Char(36)
+  supplierVisibility    SupplierVisibility @default(INTERNAL_ONLY)
+  status                LifecycleStatus    @default(ACTIVE)
+  supersededByTypeId    String?            @db.Char(36)
+  instructions          String?            @db.Text
+  allowUpload           Boolean            @default(true)
+  /// Key of the native form definition (when a native web form is implemented for this type).
+  nativeFormKey         String?            @db.VarChar(60)
+  /// Operational module that natively captures this record (e.g. NCR, SCAR, CHANGE_REQUEST, SOURCING_PROJECT).
+  nativeModule          String?            @db.VarChar(60)
+  sortOrder             Int                @default(0)
+  createdAt             DateTime           @default(now()) @db.DateTime(3)
+  updatedAt             DateTime           @updatedAt @db.DateTime(3)
+  version               Int                @default(0)
+
+  retentionPolicy   RetentionPolicy?     @relation(fields: [retentionPolicyId], references: [id])
+  supersededByType  DocumentType?        @relation("DocumentTypeSupersession", fields: [supersededByTypeId], references: [id])
+  supersedesTypes   DocumentType[]       @relation("DocumentTypeSupersession")
+  templates         DocumentTemplate[]
+  formDefinitions   FormDefinition[]
+  documents         DocumentRecord[]
+  requiredDocuments RequiredDocument[]
+  rules             ApplicabilityRule[]
+
+  @@index([category, sortOrder])
+  @@map("document_types")
+}
+
+model DocumentTemplate {
+  id             String          @id @default(uuid(7)) @db.Char(36)
+  documentTypeId String          @db.Char(36)
+  name           String          @db.VarChar(200)
+  description    String?         @db.Text
+  status         LifecycleStatus @default(ACTIVE)
+  ownerUserId    String?         @db.Char(36)
+  createdAt      DateTime        @default(now()) @db.DateTime(3)
+  updatedAt      DateTime        @updatedAt @db.DateTime(3)
+
+  documentType DocumentType       @relation(fields: [documentTypeId], references: [id])
+  revisions    TemplateRevision[]
+
+  @@index([documentTypeId])
+  @@map("document_templates")
+}
+
+model TemplateRevision {
+  id               String                 @id @default(uuid(7)) @db.Char(36)
+  templateId       String                 @db.Char(36)
+  revisionNumber   Int
+  revisionLabel    String                 @db.VarChar(10)
+  status           TemplateRevisionStatus @default(DRAFT)
+  effectiveDate    DateTime?              @db.Date
+  fileObjectId     String?                @db.Char(36)
+  formDefinitionVersionId String?         @db.Char(36)
+  changeSummary    String?                @db.Text
+  instructions     String?                @db.Text
+  approvedById     String?                @db.Char(36)
+  approvedAt       DateTime?              @db.DateTime(3)
+  createdById      String?                @db.Char(36)
+  createdAt        DateTime               @default(now()) @db.DateTime(3)
+  updatedAt        DateTime               @updatedAt @db.DateTime(3)
+
+  template              DocumentTemplate       @relation(fields: [templateId], references: [id])
+  file                  FileObject?            @relation(fields: [fileObjectId], references: [id])
+  formDefinitionVersion FormDefinitionVersion? @relation(fields: [formDefinitionVersionId], references: [id])
+  documentRevisions     DocumentRevision[]
+
+  @@unique([templateId, revisionNumber])
+  @@map("template_revisions")
+}
+
+/// Native web form definition. The field schema is versioned; submissions record the exact version used.
+model FormDefinition {
+  id             String   @id @default(uuid(7)) @db.Char(36)
+  key            String   @unique @db.VarChar(60)
+  name           String   @db.VarChar(200)
+  description    String?  @db.Text
+  documentTypeId String?  @db.Char(36)
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @db.DateTime(3)
+
+  documentType DocumentType?           @relation(fields: [documentTypeId], references: [id])
+  versions     FormDefinitionVersion[]
+
+  @@map("form_definitions")
+}
+
+model FormDefinitionVersion {
+  id               String            @id @default(uuid(7)) @db.Char(36)
+  formDefinitionId String            @db.Char(36)
+  version          Int
+  status           FormVersionStatus @default(DRAFT)
+  schema           Json
+  changeSummary    String?           @db.Text
+  publishedAt      DateTime?         @db.DateTime(3)
+  createdById      String?           @db.Char(36)
+  createdAt        DateTime          @default(now()) @db.DateTime(3)
+
+  formDefinition    FormDefinition     @relation(fields: [formDefinitionId], references: [id])
+  templateRevisions TemplateRevision[]
+  documentRevisions DocumentRevision[]
+
+  @@unique([formDefinitionId, version])
+  @@map("form_definition_versions")
+}
+
+model DocumentRecord {
+  id                  String         @id @default(uuid(7)) @db.Char(36)
+  docNumber           String         @unique @db.VarChar(40)
+  documentTypeId      String         @db.Char(36)
+  title               String         @db.VarChar(300)
+  description         String?        @db.Text
+  status              DocumentStatus @default(DRAFT)
+  /// Organization that authored/owns the record (internal company or a supplier).
+  ownerOrganizationId String         @db.Char(36)
+  /// Primary supplier context (null for company-only documents).
+  supplierId          String?        @db.Char(36)
+  latestRevisionId    String?        @unique @db.Char(36)
+  releasedRevisionId  String?        @unique @db.Char(36)
+  createdById         String         @db.Char(36)
+  createdAt           DateTime       @default(now()) @db.DateTime(3)
+  updatedAt           DateTime       @updatedAt @db.DateTime(3)
+  archivedAt          DateTime?      @db.DateTime(3)
+  version             Int            @default(0)
+
+  documentType      DocumentType           @relation(fields: [documentTypeId], references: [id])
+  ownerOrganization Organization           @relation("DocumentOwnerOrganization", fields: [ownerOrganizationId], references: [id])
+  supplier          Supplier?              @relation(fields: [supplierId], references: [id])
+  latestRevision    DocumentRevision?      @relation("DocumentLatestRevision", fields: [latestRevisionId], references: [id])
+  releasedRevision  DocumentRevision?      @relation("DocumentReleasedRevision", fields: [releasedRevisionId], references: [id])
+  revisions         DocumentRevision[]     @relation("DocumentRevisions")
+  links             DocumentLink[]
+  shares            DocumentShare[]
+  supersededBy      DocumentSupersession[] @relation("SupersededDocument")
+  supersedes        DocumentSupersession[] @relation("SupersedingDocument")
+  certifications    SupplierCertification[]
+  requiredDocuments RequiredDocument[]
+
+  @@index([documentTypeId, status])
+  @@index([supplierId, status])
+  @@index([ownerOrganizationId])
+  @@index([updatedAt])
+  @@fulltext([docNumber, title])
+  @@map("document_records")
+}
+
+model DocumentRevision {
+  id                      String           @id @default(uuid(7)) @db.Char(36)
+  documentId              String           @db.Char(36)
+  revisionNumber          Int
+  revisionLabel           String           @db.VarChar(10)
+  status                  DocumentStatus   @default(DRAFT)
+  submissionMethod        SubmissionMethod
+  templateRevisionId      String?          @db.Char(36)
+  formDefinitionVersionId String?          @db.Char(36)
+  formData                Json?
+  changeSummary           String?          @db.Text
+  /// SHA-256 over canonical form data and attached file checksums, frozen when submitted for review.
+  contentHash             String?          @db.Char(64)
+  submittedById           String?          @db.Char(36)
+  submittedAt             DateTime?        @db.DateTime(3)
+  approvedAt              DateTime?        @db.DateTime(3)
+  releasedAt              DateTime?        @db.DateTime(3)
+  releasedById            String?          @db.Char(36)
+  rejectedAt              DateTime?        @db.DateTime(3)
+  rejectionReason         String?          @db.Text
+  supersededAt            DateTime?        @db.DateTime(3)
+  supersededByRevisionId  String?          @unique @db.Char(36)
+  obsoletedAt             DateTime?        @db.DateTime(3)
+  createdById             String           @db.Char(36)
+  createdAt               DateTime         @default(now()) @db.DateTime(3)
+  updatedAt               DateTime         @updatedAt @db.DateTime(3)
+  version                 Int              @default(0)
+
+  document              DocumentRecord           @relation("DocumentRevisions", fields: [documentId], references: [id])
+  latestFor             DocumentRecord?          @relation("DocumentLatestRevision")
+  releasedFor           DocumentRecord?          @relation("DocumentReleasedRevision")
+  templateRevision      TemplateRevision?        @relation(fields: [templateRevisionId], references: [id])
+  formDefinitionVersion FormDefinitionVersion?   @relation(fields: [formDefinitionVersionId], references: [id])
+  supersededBy          DocumentRevision?        @relation("DocumentRevisionSupersession", fields: [supersededByRevisionId], references: [id])
+  supersedes            DocumentRevision?        @relation("DocumentRevisionSupersession")
+  files                 DocumentRevisionFile[]
+  release               DocumentRelease?
+  acknowledgments       DocumentAcknowledgment[]
+  pinnedLinks           DocumentLink[]
+  packageItems          ApprovalPackageItem[]
+  requiredDocuments     RequiredDocument[]
+
+  @@unique([documentId, revisionNumber])
+  @@index([status])
+  @@map("document_revisions")
+}
+
+model DocumentRevisionFile {
+  id           String     @id @default(uuid(7)) @db.Char(36)
+  revisionId   String     @db.Char(36)
+  fileObjectId String     @db.Char(36)
+  role         FileRole   @default(SUPPORTING)
+  description  String?    @db.VarChar(500)
+  sortOrder    Int        @default(0)
+  addedById    String     @db.Char(36)
+  addedAt      DateTime   @default(now()) @db.DateTime(3)
+
+  revision DocumentRevision @relation(fields: [revisionId], references: [id])
+  file     FileObject       @relation(fields: [fileObjectId], references: [id])
+
+  @@unique([revisionId, fileObjectId])
+  @@index([fileObjectId])
+  @@map("document_revision_files")
+}
+
+/// Immutable stored object metadata (one row per uploaded file version). Content lives in object storage.
+model FileObject {
+  id                  String     @id @default(uuid(7)) @db.Char(36)
+  bucket              String     @db.VarChar(80)
+  storageKey          String     @unique @db.VarChar(300)
+  originalFilename    String     @db.VarChar(255)
+  safeFilename        String     @db.VarChar(255)
+  extension           String     @db.VarChar(20)
+  declaredContentType String?    @db.VarChar(160)
+  contentType         String     @db.VarChar(160)
+  category            FileCategory @default(OTHER)
+  sizeBytes           BigInt
+  sha256              String     @db.Char(64)
+  status              FileStatus @default(UPLOADING)
+  scanEngine          String?    @db.VarChar(80)
+  scanSignature       String?    @db.VarChar(255)
+  scanAttempts        Int        @default(0)
+  scannedAt           DateTime?  @db.DateTime(3)
+  description         String?    @db.VarChar(500)
+  uploadedById        String     @db.Char(36)
+  ownerOrganizationId String     @db.Char(36)
+  createdAt           DateTime   @default(now()) @db.DateTime(3)
+  updatedAt           DateTime   @updatedAt @db.DateTime(3)
+  deletedAt           DateTime?  @db.DateTime(3)
+
+  ownerOrganization Organization           @relation(fields: [ownerOrganizationId], references: [id])
+  revisionFiles     DocumentRevisionFile[]
+  attachments       RecordAttachment[]
+  templateRevisions TemplateRevision[]
+
+  @@index([status])
+  @@index([sha256])
+  @@index([uploadedById])
+  @@map("file_objects")
+}
+
+model AllowedFileType {
+  id          String       @id @default(uuid(7)) @db.Char(36)
+  extension   String       @unique @db.VarChar(20)
+  label       String       @db.VarChar(120)
+  category    FileCategory
+  mimeTypes   Json
+  maxSizeMb   Int?
+  previewable Boolean      @default(false)
+  enabled     Boolean      @default(true)
+  createdAt   DateTime     @default(now()) @db.DateTime(3)
+  updatedAt   DateTime     @updatedAt @db.DateTime(3)
+
+  @@map("allowed_file_types")
+}
+
+/// Links a stable document record (optionally pinned to an explicit revision) to any business record.
+model DocumentLink {
+  id         String     @id @default(uuid(7)) @db.Char(36)
+  documentId String     @db.Char(36)
+  revisionId String?    @db.Char(36)
+  entityType EntityType
+  entityId   String     @db.Char(36)
+  linkRole   String     @default("REFERENCE") @db.VarChar(40)
+  note       String?    @db.VarChar(500)
+  createdById String    @db.Char(36)
+  createdAt  DateTime   @default(now()) @db.DateTime(3)
+
+  document DocumentRecord    @relation(fields: [documentId], references: [id])
+  revision DocumentRevision? @relation(fields: [revisionId], references: [id])
+
+  @@unique([documentId, entityType, entityId, linkRole])
+  @@index([entityType, entityId])
+  @@map("document_links")
+}
+
+/// Explicit authorization for an organization (e.g. a supplier) to access a document's released revisions.
+model DocumentShare {
+  id             String    @id @default(uuid(7)) @db.Char(36)
+  documentId     String    @db.Char(36)
+  organizationId String    @db.Char(36)
+  grantedById    String    @db.Char(36)
+  grantedAt      DateTime  @default(now()) @db.DateTime(3)
+  revokedAt      DateTime? @db.DateTime(3)
+  note           String?   @db.VarChar(500)
+
+  document     DocumentRecord @relation(fields: [documentId], references: [id])
+  organization Organization   @relation(fields: [organizationId], references: [id])
+
+  @@unique([documentId, organizationId])
+  @@index([organizationId])
+  @@map("document_shares")
+}
+
+model DocumentAcknowledgment {
+  id               String   @id @default(uuid(7)) @db.Char(36)
+  revisionId       String   @db.Char(36)
+  organizationId   String   @db.Char(36)
+  userId           String?  @db.Char(36)
+  acknowledgedByName String @db.VarChar(160)
+  acknowledgedAt   DateTime @default(now()) @db.DateTime(3)
+  comment          String?  @db.Text
+
+  revision     DocumentRevision @relation(fields: [revisionId], references: [id])
+  organization Organization     @relation(fields: [organizationId], references: [id])
+
+  @@index([revisionId])
+  @@map("document_acknowledgments")
+}
+
+model DocumentRelease {
+  id            String    @id @default(uuid(7)) @db.Char(36)
+  releaseNumber String    @unique @db.VarChar(40)
+  revisionId    String    @unique @db.Char(36)
+  releasedById  String    @db.Char(36)
+  releasedAt    DateTime  @default(now()) @db.DateTime(3)
+  effectiveDate DateTime  @db.Date
+  releaseNotes  String?   @db.Text
+
+  revision DocumentRevision @relation(fields: [revisionId], references: [id])
+
+  @@map("document_releases")
+}
+
+model DocumentSupersession {
+  id                    String   @id @default(uuid(7)) @db.Char(36)
+  supersededDocumentId  String   @db.Char(36)
+  supersedingDocumentId String   @db.Char(36)
+  reason                String?  @db.Text
+  createdById           String   @db.Char(36)
+  createdAt             DateTime @default(now()) @db.DateTime(3)
+
+  supersededDocument  DocumentRecord @relation("SupersededDocument", fields: [supersededDocumentId], references: [id])
+  supersedingDocument DocumentRecord @relation("SupersedingDocument", fields: [supersedingDocumentId], references: [id])
+
+  @@unique([supersededDocumentId, supersedingDocumentId])
+  @@map("document_supersessions")
+}
+
+/// Evidence attachments on operational records (NCR photos, SCAR evidence, change request support files).
+model RecordAttachment {
+  id           String     @id @default(uuid(7)) @db.Char(36)
+  entityType   EntityType
+  entityId     String     @db.Char(36)
+  fileObjectId String     @db.Char(36)
+  description  String?    @db.VarChar(500)
+  visibility   Visibility @default(INTERNAL)
+  addedById    String     @db.Char(36)
+  addedAt      DateTime   @default(now()) @db.DateTime(3)
+  removedAt    DateTime?  @db.DateTime(3)
+  removedById  String?    @db.Char(36)
+
+  file FileObject @relation(fields: [fileObjectId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([fileObjectId])
+  @@map("record_attachments")
+}

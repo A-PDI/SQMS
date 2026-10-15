@@ -1,0 +1,38 @@
+{
+  "name": "sqms",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Supplier Quality Management System (SQMS) - modular monorepo",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "pnpm build:packages && pnpm --filter @sqms/api --filter @sqms/worker --filter @sqms/web run build",
+    "build:packages": "pnpm --filter @sqms/shared run build && pnpm --filter @sqms/db run build && pnpm --filter @sqms/server-core run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r --workspace-concurrency=1 run test",
+    "test:e2e": "pnpm --filter @sqms/e2e run e2e",
+    "db:generate": "pnpm --filter @sqms/db run generate",
+    "db:migrate": "pnpm --filter @sqms/db run migrate:deploy",
+    "db:migrate:dev": "pnpm --filter @sqms/db run migrate:dev",
+    "db:seed": "pnpm --filter @sqms/db run seed",
+    "db:seed:demo": "pnpm --filter @sqms/api run seed:demo",
+    "dev:api": "pnpm --filter @sqms/api run dev",
+    "dev:worker": "pnpm --filter @sqms/worker run dev",
+    "dev:web": "pnpm --filter @sqms/web run dev"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "prisma",
+      "argon2",
+      "esbuild",
+      "sharp",
+      "unrs-resolver",
+      "@swc/core",
+      "@nestjs/core"
+    ]
+  }
+}

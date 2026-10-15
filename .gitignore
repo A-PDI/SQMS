@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+!.env.test.example
+!.env.compose.example
+packages/db/src/generated/
+playwright-report/
+test-results/
+e2e/.auth/
+*.log
+.DS_Store
+.turbo/
+infra/data/
+.worker-test.log
+.worker-test.pid
+
+# Next.js
+next-env.d.ts
+*.tsbuildinfo
+backups/

@@ -1,0 +1,250 @@
+// Reusable workflow & approval engine, tasks, comments.
+
+enum WorkflowSubjectType {
+  DOCUMENT_REVISION
+  PRODUCT_QUALIFICATION
+  CHANGE_REQUEST
+  SUPPLIER_QUALIFICATION
+  DEVIATION
+  SOURCING_PROJECT
+  NCR_DISPOSITION
+  SCAR_CLOSURE
+}
+
+enum WorkflowStatus {
+  ACTIVE
+  APPROVED
+  REJECTED
+  INFO_REQUESTED
+  CANCELLED
+}
+
+enum StepStatus {
+  WAITING
+  ACTIVE
+  APPROVED
+  REJECTED
+  SKIPPED
+  CANCELLED
+}
+
+enum ApproverType {
+  ROLE
+  USER
+  RECORD_OWNER
+}
+
+enum AssignmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  INFO_REQUESTED
+  REASSIGNED
+  CANCELLED
+}
+
+enum TaskType {
+  APPROVAL
+  DOCUMENT_SUBMISSION
+  ACTION
+  REVIEW
+  SCAR_RESPONSE
+  INFO_REQUEST
+  FOLLOW_UP
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+/// Versioned workflow definition. Steps with the same stepOrder run in parallel; increasing stepOrder runs sequentially.
+model WorkflowDefinition {
+  id          String              @id @default(uuid(7)) @db.Char(36)
+  key         String              @db.VarChar(80)
+  version     Int
+  name        String              @db.VarChar(200)
+  description String?             @db.Text
+  subjectType WorkflowSubjectType
+  isActive    Boolean             @default(true)
+  createdById String?             @db.Char(36)
+  createdAt   DateTime            @default(now()) @db.DateTime(3)
+
+  steps     WorkflowStepDefinition[]
+  instances WorkflowInstance[]
+
+  @@unique([key, version])
+  @@index([subjectType, isActive])
+  @@map("workflow_definitions")
+}
+
+model WorkflowStepDefinition {
+  id                String       @id @default(uuid(7)) @db.Char(36)
+  definitionId      String       @db.Char(36)
+  stepOrder         Int
+  key               String       @db.VarChar(80)
+  name              String       @db.VarChar(200)
+  approverType      ApproverType
+  approverRoleKey   String?      @db.VarChar(60)
+  approverUserId    String?      @db.Char(36)
+  /// Number of approvals required from the role pool (ROLE approver type).
+  requiredApprovals Int          @default(1)
+  dueInDays         Int?
+  escalateAfterDays Int?
+  escalateToRoleKey String?      @db.VarChar(60)
+  allowDelegation   Boolean      @default(true)
+  /// Optional condition evaluated against the subject context (same grammar as applicability rules).
+  condition         Json?
+
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  steps      WorkflowStep[]
+
+  @@unique([definitionId, key])
+  @@index([definitionId, stepOrder])
+  @@map("workflow_step_definitions")
+}
+
+model WorkflowInstance {
+  id                String              @id @default(uuid(7)) @db.Char(36)
+  definitionId      String              @db.Char(36)
+  subjectType       WorkflowSubjectType
+  subjectId         String              @db.Char(36)
+  /// Human-readable reference of the exact subject revision under approval (e.g. DOC-2026-00012 rev B).
+  subjectLabel      String              @db.VarChar(200)
+  /// Content hash/version of the subject at the time approval started. Decisions apply to this exact version.
+  subjectVersionRef String?             @db.VarChar(100)
+  status            WorkflowStatus      @default(ACTIVE)
+  currentStepOrder  Int?
+  context           Json?
+  startedById       String              @db.Char(36)
+  startedAt         DateTime            @default(now()) @db.DateTime(3)
+  completedAt       DateTime?           @db.DateTime(3)
+  outcomeComment    String?             @db.Text
+  version           Int                 @default(0)
+
+  definition            WorkflowDefinition     @relation(fields: [definitionId], references: [id])
+  steps                 WorkflowStep[]
+  supplierQualification SupplierQualification?
+  sourcingProject       SourcingProject?
+  productQualification  ProductQualification?
+  changeRequest         ChangeRequest?
+  deviation             Deviation?
+
+  @@index([subjectType, subjectId])
+  @@index([status])
+  @@map("workflow_instances")
+}
+
+model WorkflowStep {
+  id               String     @id @default(uuid(7)) @db.Char(36)
+  instanceId       String     @db.Char(36)
+  stepDefinitionId String     @db.Char(36)
+  stepOrder        Int
+  name             String     @db.VarChar(200)
+  status           StepStatus @default(WAITING)
+  requiredApprovals Int       @default(1)
+  activatedAt      DateTime?  @db.DateTime(3)
+  completedAt      DateTime?  @db.DateTime(3)
+  dueAt            DateTime?  @db.DateTime(3)
+
+  instance       WorkflowInstance       @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  stepDefinition WorkflowStepDefinition @relation(fields: [stepDefinitionId], references: [id])
+  assignments    ApprovalAssignment[]
+
+  @@index([instanceId, stepOrder])
+  @@map("workflow_steps")
+}
+
+model ApprovalAssignment {
+  id                String           @id @default(uuid(7)) @db.Char(36)
+  stepId            String           @db.Char(36)
+  assigneeUserId    String?          @db.Char(36)
+  assigneeRoleKey   String?          @db.VarChar(60)
+  status            AssignmentStatus @default(PENDING)
+  comment           String?          @db.Text
+  decidedById       String?          @db.Char(36)
+  decidedAt         DateTime?        @db.DateTime(3)
+  /// Exact subject version the decision applied to (copied from the instance at decision time).
+  decidedSubjectRef String?          @db.VarChar(100)
+  dueAt             DateTime?        @db.DateTime(3)
+  escalatedAt       DateTime?        @db.DateTime(3)
+  escalationLevel   Int              @default(0)
+  reassignedFromId  String?          @db.Char(36)
+  reassignedById    String?          @db.Char(36)
+  reassignReason    String?          @db.VarChar(500)
+  createdAt         DateTime         @default(now()) @db.DateTime(3)
+  version           Int              @default(0)
+
+  step         WorkflowStep        @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  assignee     User?               @relation("AssignmentAssignee", fields: [assigneeUserId], references: [id])
+  decidedBy    User?               @relation("AssignmentDecider", fields: [decidedById], references: [id])
+  reassignedFrom ApprovalAssignment? @relation("AssignmentReassignment", fields: [reassignedFromId], references: [id])
+  reassignedTo ApprovalAssignment[] @relation("AssignmentReassignment")
+  tasks        Task[]
+
+  @@index([assigneeUserId, status])
+  @@index([assigneeRoleKey, status])
+  @@index([status, dueAt])
+  @@map("approval_assignments")
+}
+
+model Task {
+  id                     String      @id @default(uuid(7)) @db.Char(36)
+  title                  String      @db.VarChar(300)
+  description            String?     @db.Text
+  type                   TaskType
+  status                 TaskStatus  @default(OPEN)
+  priority               Priority    @default(NORMAL)
+  assigneeUserId         String?     @db.Char(36)
+  assigneeRoleKey        String?     @db.VarChar(60)
+  /// Tasks assigned to a supplier organization (Phase 2 portal) are scoped by this column.
+  assigneeOrganizationId String?     @db.Char(36)
+  dueAt                  DateTime?   @db.DateTime(3)
+  completedAt            DateTime?   @db.DateTime(3)
+  completedById          String?     @db.Char(36)
+  entityType             EntityType?
+  entityId               String?     @db.Char(36)
+  entityLabel            String?     @db.VarChar(200)
+  approvalAssignmentId   String?     @db.Char(36)
+  requiredDocumentId     String?     @db.Char(36)
+  lastReminderAt         DateTime?   @db.DateTime(3)
+  createdById            String?     @db.Char(36)
+  createdAt              DateTime    @default(now()) @db.DateTime(3)
+  updatedAt              DateTime    @updatedAt @db.DateTime(3)
+  version                Int         @default(0)
+
+  assignee             User?               @relation("TaskAssignee", fields: [assigneeUserId], references: [id])
+  createdBy            User?               @relation("TaskCreator", fields: [createdById], references: [id])
+  assigneeOrganization Organization?       @relation("TaskAssigneeOrganization", fields: [assigneeOrganizationId], references: [id])
+  approvalAssignment   ApprovalAssignment? @relation(fields: [approvalAssignmentId], references: [id])
+
+  @@index([assigneeUserId, status])
+  @@index([assigneeRoleKey, status])
+  @@index([assigneeOrganizationId, status])
+  @@index([entityType, entityId])
+  @@index([status, dueAt])
+  @@map("tasks")
+}
+
+model Comment {
+  id         String     @id @default(uuid(7)) @db.Char(36)
+  entityType EntityType
+  entityId   String     @db.Char(36)
+  authorId   String     @db.Char(36)
+  body       String     @db.Text
+  /// INTERNAL comments are never returned to supplier users.
+  visibility Visibility @default(INTERNAL)
+  parentId   String?    @db.Char(36)
+  createdAt  DateTime   @default(now()) @db.DateTime(3)
+  editedAt   DateTime?  @db.DateTime(3)
+  deletedAt  DateTime?  @db.DateTime(3)
+
+  author  User      @relation(fields: [authorId], references: [id])
+  parent  Comment?  @relation("CommentThread", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentThread")
+
+  @@index([entityType, entityId, createdAt])
+  @@map("comments")
+}

@@ -1,0 +1,64 @@
+# Local development infrastructure only (the API, worker and web app run on the host with pnpm).
+#   docker compose -f compose.dev.yaml up -d
+# Defaults match .env.example and the API integration-test defaults; ports are bound to 127.0.0.1 so nothing is reachable from other machines.
+# Never use these defaults outside a developer workstation.
+
+name: sqms-dev
+
+services:
+  mysql:
+    image: mysql:8.4.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DEV_MYSQL_ROOT_PASSWORD:-root-dev-pw}
+      SQMS_DB_NAME: sqms
+      SQMS_MIGRATOR_USER: sqms_migrator
+      SQMS_MIGRATOR_PASSWORD: ${DEV_MIGRATOR_PASSWORD:-migrator-dev-pw}
+      SQMS_APP_USER: sqms_app
+      SQMS_APP_PASSWORD: ${DEV_APP_PASSWORD:-app-dev-pw}
+      SQMS_REPORTER_PASSWORD: ${DEV_REPORTER_PASSWORD:-reporter-dev-pw}
+      # Also creates sqms_shadow (Prisma migrate dev) and sqms_test (API integration tests).
+      SQMS_CREATE_DEV_DATABASES: "true"
+    ports: ["127.0.0.1:3306:3306"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./infra/mysql/conf/sqms.cnf:/etc/mysql/conf.d/sqms.cnf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7.4.11
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports: ["127.0.0.1:6379:6379"]
+    volumes:
+      - redis-data:/data
+
+  minio:
+    build:
+      context: ./infra/minio
+    image: sqms/minio:local
+    environment:
+      MINIO_ROOT_USER: ${DEV_MINIO_USER:-sqmsminio}
+      MINIO_ROOT_PASSWORD: ${DEV_MINIO_PASSWORD:-sqmsminio-dev-secret}
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    volumes:
+      - minio-data:/data
+
+  clamav:
+    image: clamav/clamav:1.5.4
+    ports: ["127.0.0.1:3310:3310"]
+    volumes:
+      - clamav-data:/var/lib/clamav
+
+  mailpit:
+    image: axllent/mailpit:v1.31.5
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+
+volumes:
+  mysql-data:
+  redis-data:
+  minio-data:
+  clamav-data:

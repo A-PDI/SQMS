@@ -1,0 +1,279 @@
+// Sourcing projects, pathways, risk assessments, applicability policies/rules, required document instances.
+
+enum SourcingPathwayCode {
+  A
+  B
+  C
+}
+
+enum SourcingProjectStatus {
+  DRAFT
+  SUBMITTED
+  IN_PROGRESS
+  QUALIFICATION
+  APPROVED
+  REJECTED
+  ON_HOLD
+  CANCELLED
+  CLOSED
+}
+
+enum ProjectStage {
+  INTAKE
+  SUPPLIER_ONBOARDING
+  ENGINEERING_DEFINITION
+  REVERSE_ENGINEERING
+  VALIDATION
+  APPROVAL
+  PRODUCTION
+}
+
+enum ProjectMemberRole {
+  OWNER
+  ENGINEERING
+  SUPPLIER_QUALITY
+  PURCHASING
+  APPROVER
+  CONTRIBUTOR
+}
+
+enum PolicyStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+enum RequirementLevel {
+  REQUIRED
+  CONDITIONAL
+  NOT_APPLICABLE
+}
+
+enum RequiredDocStatus {
+  OPEN
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  WAIVED
+  NOT_APPLICABLE
+}
+
+enum RequirementSource {
+  POLICY
+  MANUAL
+  CHANGE_ASSESSMENT
+}
+
+/// Reference data describing sourcing pathways A/B/C.
+model SourcingPathway {
+  id          String              @id @default(uuid(7)) @db.Char(36)
+  code        SourcingPathwayCode @unique
+  name        String              @db.VarChar(160)
+  description String              @db.Text
+  designOwnership DesignOwnership
+  defaultBaselineType BaselineType
+  defaultConfigurationType ConfigurationType
+  isActive    Boolean             @default(true)
+
+  @@map("sourcing_pathways")
+}
+
+model SourcingProject {
+  id                   String                @id @default(uuid(7)) @db.Char(36)
+  projectNumber        String                @unique @db.VarChar(40)
+  title                String                @db.VarChar(250)
+  description          String?               @db.Text
+  pathway              SourcingPathwayCode
+  reverseEngineeringRequired Boolean         @default(false)
+  engineeringOwnership DesignOwnership
+  status               SourcingProjectStatus @default(DRAFT)
+  stage                ProjectStage          @default(INTAKE)
+  internalPartId       String                @db.Char(36)
+  supplierId           String                @db.Char(36)
+  siteId               String?               @db.Char(36)
+  supplierPartId       String?               @db.Char(36)
+  supplierProductId    String?               @db.Char(36)
+  configurationId      String?               @db.Char(36)
+  ownerId              String                @db.Char(36)
+  targetDate           DateTime?             @db.Date
+  businessJustification String?              @db.Text
+  annualVolume         Int?
+  specialProcesses     Boolean               @default(false)
+  customerRequirements Boolean               @default(false)
+  /// Inputs (snapshot) used to evaluate the applicability policy when the checklist was generated.
+  applicabilityContext Json?
+  applicabilityPolicyVersionId String?       @db.Char(36)
+  checklistGeneratedAt DateTime?             @db.DateTime(3)
+  supplierVisible      Boolean               @default(false)
+  submittedAt          DateTime?             @db.DateTime(3)
+  submittedById        String?               @db.Char(36)
+  approvedAt           DateTime?             @db.DateTime(3)
+  closedAt             DateTime?             @db.DateTime(3)
+  holdReason           String?               @db.Text
+  workflowInstanceId   String?               @unique @db.Char(36)
+  createdById          String                @db.Char(36)
+  createdAt            DateTime              @default(now()) @db.DateTime(3)
+  updatedAt            DateTime              @updatedAt @db.DateTime(3)
+  archivedAt           DateTime?             @db.DateTime(3)
+  version              Int                   @default(0)
+
+  internalPart      InternalPart                @relation(fields: [internalPartId], references: [id])
+  supplier          Supplier                    @relation(fields: [supplierId], references: [id])
+  site              SupplierSite?               @relation(fields: [siteId], references: [id])
+  supplierPart      SupplierPart?               @relation(fields: [supplierPartId], references: [id])
+  supplierProduct   SupplierProduct?            @relation("ProjectSupplierProduct", fields: [supplierProductId], references: [id])
+  configuration     ProductConfiguration?       @relation(fields: [configurationId], references: [id])
+  owner             User                        @relation("ProjectOwner", fields: [ownerId], references: [id])
+  policyVersion     ApplicabilityPolicyVersion? @relation(fields: [applicabilityPolicyVersionId], references: [id])
+  workflowInstance  WorkflowInstance?           @relation(fields: [workflowInstanceId], references: [id])
+  members           SourcingProjectMember[]
+  riskAssessments   RiskAssessment[]
+  requiredDocuments RequiredDocument[]
+  qualifications    ProductQualification[]
+  originatedSupplierProducts SupplierProduct[]  @relation("ProjectOriginOfSupplierProduct")
+
+  @@index([status, stage])
+  @@index([supplierId])
+  @@index([internalPartId])
+  @@index([ownerId])
+  @@fulltext([projectNumber, title])
+  @@map("sourcing_projects")
+}
+
+model SourcingProjectMember {
+  id        String            @id @default(uuid(7)) @db.Char(36)
+  projectId String            @db.Char(36)
+  userId    String            @db.Char(36)
+  role      ProjectMemberRole
+  dueDate   DateTime?         @db.Date
+  responsibility String?      @db.VarChar(500)
+  createdAt DateTime          @default(now()) @db.DateTime(3)
+
+  project SourcingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId, role])
+  @@index([userId])
+  @@map("sourcing_project_members")
+}
+
+/// Sourcing path & product risk assessment (SPRA). Score and level are computed server-side from the factors.
+model RiskAssessment {
+  id                String     @id @default(uuid(7)) @db.Char(36)
+  sourcingProjectId String?    @db.Char(36)
+  internalPartId    String     @db.Char(36)
+  modelVersion      String     @db.VarChar(20)
+  factors           Json
+  score             Int
+  level             RiskLevel
+  specialProcesses  Boolean    @default(false)
+  specialProcessList String?   @db.Text
+  rationale         String?    @db.Text
+  isCurrent         Boolean    @default(true)
+  assessedById      String     @db.Char(36)
+  assessedAt        DateTime   @default(now()) @db.DateTime(3)
+
+  sourcingProject SourcingProject? @relation(fields: [sourcingProjectId], references: [id])
+  internalPart    InternalPart     @relation(fields: [internalPartId], references: [id])
+
+  @@index([sourcingProjectId, isCurrent])
+  @@map("risk_assessments")
+}
+
+/// Database-driven requirements matrix. Versions are immutable once ACTIVE; projects record the version used.
+model ApplicabilityPolicy {
+  id          String   @id @default(uuid(7)) @db.Char(36)
+  key         String   @unique @db.VarChar(60)
+  name        String   @db.VarChar(200)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+
+  versions ApplicabilityPolicyVersion[]
+
+  @@map("applicability_policies")
+}
+
+model ApplicabilityPolicyVersion {
+  id          String       @id @default(uuid(7)) @db.Char(36)
+  policyId    String       @db.Char(36)
+  version     Int
+  status      PolicyStatus @default(DRAFT)
+  notes       String?      @db.Text
+  activatedAt DateTime?    @db.DateTime(3)
+  activatedById String?    @db.Char(36)
+  retiredAt   DateTime?    @db.DateTime(3)
+  createdById String?      @db.Char(36)
+  createdAt   DateTime     @default(now()) @db.DateTime(3)
+
+  policy   ApplicabilityPolicy @relation(fields: [policyId], references: [id])
+  rules    ApplicabilityRule[]
+  projects SourcingProject[]
+
+  @@unique([policyId, version])
+  @@map("applicability_policy_versions")
+}
+
+model ApplicabilityRule {
+  id              String           @id @default(uuid(7)) @db.Char(36)
+  policyVersionId String           @db.Char(36)
+  documentTypeId  String           @db.Char(36)
+  outcome         RequirementLevel
+  /// Higher priority rules win; ties resolve to the strictest outcome.
+  priority        Int              @default(0)
+  /// Condition tree, e.g. {"all":[{"field":"pathway","op":"in","value":["A","C"]}]}. Empty = always matches.
+  conditions      Json
+  reason          String           @db.VarChar(500)
+  dueOffsetDays   Int?
+  defaultAssigneeRoleKey String?   @db.VarChar(60)
+  createdAt       DateTime         @default(now()) @db.DateTime(3)
+
+  policyVersion ApplicabilityPolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
+  documentType  DocumentType               @relation(fields: [documentTypeId], references: [id])
+  requiredDocuments RequiredDocument[]
+
+  @@index([policyVersionId, documentTypeId])
+  @@map("applicability_rules")
+}
+
+/// A required document instance in a project or change-request checklist.
+model RequiredDocument {
+  id               String            @id @default(uuid(7)) @db.Char(36)
+  projectId        String?           @db.Char(36)
+  changeRequestId  String?           @db.Char(36)
+  qualificationId  String?           @db.Char(36)
+  documentTypeId   String            @db.Char(36)
+  level            RequirementLevel
+  status           RequiredDocStatus @default(OPEN)
+  source           RequirementSource @default(POLICY)
+  ruleId           String?           @db.Char(36)
+  reason           String?           @db.VarChar(500)
+  notes            String?           @db.Text
+  assignedToId     String?           @db.Char(36)
+  assignedRoleKey  String?           @db.VarChar(60)
+  dueDate          DateTime?         @db.Date
+  documentId       String?           @db.Char(36)
+  acceptedRevisionId String?         @db.Char(36)
+  acceptedAt       DateTime?         @db.DateTime(3)
+  waivedById       String?           @db.Char(36)
+  waivedAt         DateTime?         @db.DateTime(3)
+  waiverJustification String?        @db.Text
+  addedById        String?           @db.Char(36)
+  createdAt        DateTime          @default(now()) @db.DateTime(3)
+  updatedAt        DateTime          @updatedAt @db.DateTime(3)
+  version          Int               @default(0)
+
+  project          SourcingProject?      @relation(fields: [projectId], references: [id])
+  changeRequest    ChangeRequest?        @relation(fields: [changeRequestId], references: [id])
+  qualification    ProductQualification? @relation(fields: [qualificationId], references: [id])
+  documentType     DocumentType          @relation(fields: [documentTypeId], references: [id])
+  rule             ApplicabilityRule?    @relation(fields: [ruleId], references: [id])
+  document         DocumentRecord?       @relation(fields: [documentId], references: [id])
+  acceptedRevision DocumentRevision?     @relation(fields: [acceptedRevisionId], references: [id])
+
+  @@index([projectId, status])
+  @@index([changeRequestId])
+  @@index([qualificationId])
+  @@index([documentId])
+  @@index([assignedToId, status])
+  @@map("required_documents")
+}
