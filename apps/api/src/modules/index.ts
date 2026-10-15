@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "./auth/auth.module";
+import { ChangeRequestsModule } from "./change-requests/change-requests.module";
 import { HealthController } from "./health/health.controller";
 import { ConfigurationsModule } from "./configurations/configurations.module";
 import { DocumentTypesModule } from "./document-types/document-types.module";
@@ -14,4 +15,4 @@ import { WorkflowModule } from "./workflow/workflow.module";
 @Module({ controllers: [HealthController] })
 class HealthModule {}
 
-export const FEATURE_MODULES = [HealthModule, AuthModule, WorkflowModule, SuppliersModule, ProductsModule, ConfigurationsModule, FilesModule, DocumentTypesModule, DocumentsModule, SourcingModule, QualificationsModule];
+export const FEATURE_MODULES = [HealthModule, AuthModule, WorkflowModule, SuppliersModule, ProductsModule, ConfigurationsModule, FilesModule, DocumentTypesModule, DocumentsModule, SourcingModule, QualificationsModule, ChangeRequestsModule];

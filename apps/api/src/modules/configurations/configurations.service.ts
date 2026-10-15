@@ -331,6 +331,33 @@ export class ConfigurationsService {
     return rev;
   }
 
+  /**
+   * Location change: copies a revision into a new configuration owned by the supplier product at another site. The
+   * source configuration (and its approval at the current site) is left untouched until the change is approved.
+   */
+  async cloneForSupplierProduct(tx: Tx, actorId: string, sourceRevisionId: string, supplierProductId: string, changeSummary: string) {
+    const src = await tx.configurationRevision.findUniqueOrThrow({ where: { id: sourceRevisionId }, include: { configuration: true } });
+    const sp = await tx.supplierProduct.findUniqueOrThrow({ where: { id: supplierProductId } });
+    if (sp.supplierId !== src.configuration.supplierId) throw new BusinessRuleError("The target supplier product belongs to another supplier");
+    const configCode = await this.numbering.next(tx, "CONFIGURATION");
+    const configuration = await tx.productConfiguration.create({
+      data: {
+        configCode,
+        supplierProductId: sp.id,
+        supplierId: sp.supplierId,
+        name: src.configuration.name,
+        configurationType: src.configuration.configurationType,
+        baseConfigurationId: src.configuration.baseConfigurationId,
+        customPartNumber: src.configuration.customPartNumber,
+        description: src.configuration.description,
+        createdById: actorId,
+      },
+    });
+    const revision = await this.copyRevision(tx, sourceRevisionId, { status: "PROPOSED", changeSummary, createdById: actorId, targetConfigurationId: configuration.id });
+    await this.audit.record({ eventType: "configuration.created", entityType: "PRODUCT_CONFIGURATION", entityId: configuration.id, entityLabel: configCode, metadata: { supplierProductId: sp.id, derivedFromRevisionId: sourceRevisionId, reason: changeSummary } }, tx);
+    return { configuration, revision };
+  }
+
   async withdrawRevision(actor: Actor, revisionId: string, reason: string) {
     return this.db.tx(async (tx) => {
       const rev = await this.lockEditableRevision(tx, revisionId);

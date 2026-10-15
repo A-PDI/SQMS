@@ -754,16 +754,33 @@ export class SourcingService implements OnModuleInit, WorkflowSubjectHandler {
   }
 
   async createDocument(actor: Actor, id: string, dto: CreateRequirementDocumentDto) {
-    const r = await this.db.client.requiredDocument.findUnique({ where: { id }, include: { project: true } });
+    const r = await this.db.client.requiredDocument.findUnique({
+      where: { id },
+      include: { project: true, changeRequest: true, qualification: { include: { supplierProduct: { select: { internalPartId: true } } } } },
+    });
     if (!r) throw new NotFoundError("Required document");
+    // The owning record determines the supplier and the reference links (never the client).
+    const owner = r.project
+      ? { supplierId: r.project.supplierId, internalPartId: r.project.internalPartId, extra: [] as { entityType: "CHANGE_REQUEST" | "PRODUCT_QUALIFICATION"; entityId: string }[] }
+      : r.changeRequest
+        ? { supplierId: r.changeRequest.supplierId, internalPartId: r.changeRequest.internalPartId, extra: [{ entityType: "CHANGE_REQUEST" as const, entityId: r.changeRequest.id }] }
+        : r.qualification
+          ? { supplierId: r.qualification.supplierId, internalPartId: r.qualification.supplierProduct.internalPartId, extra: [{ entityType: "PRODUCT_QUALIFICATION" as const, entityId: r.qualification.id }] }
+          : null;
+    if (!owner) throw new BusinessRuleError("The requirement is not attached to a project, change request or qualification");
+    AccessScope.of(actor).assertSupplier(owner.supplierId, "Required document");
     return this.documents.create(actor, {
       documentTypeId: r.documentTypeId,
       title: dto.title,
       submissionMethod: dto.submissionMethod,
       formData: dto.formData,
-      supplierId: r.project?.supplierId,
+      supplierId: owner.supplierId,
       requiredDocumentId: id,
-      links: r.project ? [{ entityType: "SUPPLIER", entityId: r.project.supplierId, linkRole: "REFERENCE" }, { entityType: "INTERNAL_PART", entityId: r.project.internalPartId, linkRole: "REFERENCE" }] : [],
+      links: [
+        { entityType: "SUPPLIER", entityId: owner.supplierId, linkRole: "REFERENCE" },
+        { entityType: "INTERNAL_PART", entityId: owner.internalPartId, linkRole: "REFERENCE" },
+        ...owner.extra.map((e) => ({ ...e, linkRole: "EVIDENCE" })),
+      ],
     });
   }
 
