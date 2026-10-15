@@ -50,6 +50,9 @@ if [ -n "${SQMS_PUBLIC_URL:-}" ]; then
     APP_BASE_URL=$public_url
     export APP_BASE_URL
   fi
+elif [ -z "${APP_ORIGINS:-}" ]; then
+  echo "[sqms-env] SQMS_PUBLIC_URL is not set. Set it in this service's environment to the public address of the" \
+    "gateway (the URL shown on the sqms-gateway service, e.g. https://sqms-gateway.onrender.com)." >&2
 fi
 
 exec "$@"
