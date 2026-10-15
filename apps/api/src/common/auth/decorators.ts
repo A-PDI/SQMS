@@ -6,12 +6,16 @@ import { UnauthorizedError } from "../errors/app-errors";
 export const PUBLIC_KEY = "sqms:public";
 export const PERMISSIONS_KEY = "sqms:permissions";
 export const AUDIENCE_KEY = "sqms:audience";
+export const ANY_PERMISSIONS_KEY = "sqms:any-permissions";
 
 /** Endpoint does not require an authenticated session. */
 export const Public = () => SetMetadata(PUBLIC_KEY, true);
 
 /** All listed permissions are required. */
 export const RequirePermissions = (...permissions: string[]) => SetMetadata(PERMISSIONS_KEY, permissions);
+
+/** At least one of the listed permissions is required (e.g. a supplier's own permission or an internal on-behalf permission). */
+export const RequireAnyPermission = (...permissions: string[]) => SetMetadata(ANY_PERMISSIONS_KEY, permissions);
 
 /**
  * Who may call the endpoint. Default is "internal" (company users only).

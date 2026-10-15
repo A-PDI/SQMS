@@ -5,7 +5,7 @@ import { APP_ENV } from "../../infra/tokens";
 import { RequestContext } from "../context/request-context";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "../errors/app-errors";
 import { csrfTokenValid } from "./csrf";
-import { AUDIENCE_KEY, PERMISSIONS_KEY, PUBLIC_KEY, type Audience, type AuthenticatedRequest } from "./decorators";
+import { ANY_PERMISSIONS_KEY, AUDIENCE_KEY, PERMISSIONS_KEY, PUBLIC_KEY, type Audience, type AuthenticatedRequest } from "./decorators";
 import { SessionService } from "./session.service";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -94,12 +94,14 @@ export class PermissionsGuard implements CanActivate {
 
   canActivate(ctx: ExecutionContext): boolean {
     const required = this.reflector.getAllAndMerge<string[]>(PERMISSIONS_KEY, [ctx.getClass(), ctx.getHandler()]) ?? [];
-    if (!required.length) return true;
+    const anyOf = this.reflector.getAllAndOverride<string[]>(ANY_PERMISSIONS_KEY, [ctx.getHandler(), ctx.getClass()]) ?? [];
+    if (!required.length && !anyOf.length) return true;
     const req = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
     const actor = req.actor;
     if (!actor) throw new UnauthorizedError();
     const missing = required.filter((p) => !actor.permissions.has(p));
     if (missing.length) throw new ForbiddenError(`Missing permission: ${missing.join(", ")}`);
+    if (anyOf.length && !anyOf.some((p) => actor.permissions.has(p))) throw new ForbiddenError(`Requires one of: ${anyOf.join(", ")}`);
     return true;
   }
 }
