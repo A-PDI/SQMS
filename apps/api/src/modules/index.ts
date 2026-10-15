@@ -9,6 +9,7 @@ import { ConfigurationsModule } from "./configurations/configurations.module";
 import { DocumentTypesModule } from "./document-types/document-types.module";
 import { DocumentsModule } from "./documents/documents.module";
 import { FilesModule } from "./files/files.module";
+import { PortalModule } from "./portal/portal.controller";
 import { ProductsModule } from "./products/products.module";
 import { QualificationsModule } from "./qualifications/qualifications.module";
 import { QualityModule } from "./quality/quality.module";
@@ -19,4 +20,4 @@ import { WorkflowModule } from "./workflow/workflow.module";
 @Module({ controllers: [HealthController] })
 class HealthModule {}
 
-export const FEATURE_MODULES = [HealthModule, AuthModule, WorkflowModule, SuppliersModule, ProductsModule, ConfigurationsModule, FilesModule, DocumentTypesModule, DocumentsModule, SourcingModule, QualificationsModule, ChangeRequestsModule, QualityModule, CollaborationModule, AdminModule, InsightsModule];
+export const FEATURE_MODULES = [HealthModule, AuthModule, WorkflowModule, SuppliersModule, ProductsModule, ConfigurationsModule, FilesModule, DocumentTypesModule, DocumentsModule, SourcingModule, QualificationsModule, ChangeRequestsModule, QualityModule, CollaborationModule, AdminModule, InsightsModule, PortalModule];

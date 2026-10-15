@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { PERMISSIONS as P } from "@sqms/shared";
 import type { Response } from "express";
 import type { Actor } from "../../common/auth/actor";
-import { CurrentActor, RequirePermissions } from "../../common/auth/decorators";
+import { AudienceScope, CurrentActor, RequirePermissions } from "../../common/auth/decorators";
 import { AuditService } from "../../common/audit/audit.service";
 import { sendCsv, toCsv } from "../../common/http/csv";
 import {
@@ -33,6 +33,7 @@ export class DocumentsController {
   ) {}
 
   @Get()
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_READ)
   @ApiOperation({ summary: "Search document records (type, status, supplier, linked record, revision, dates)" })
   list(@CurrentActor() actor: Actor, @Query() q: DocumentListQuery) {
@@ -63,6 +64,7 @@ export class DocumentsController {
   }
 
   @Post()
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   @ApiOperation({ summary: "Create a document record (native form or uploaded submission) linked to its type and template revision" })
   create(@CurrentActor() actor: Actor, @Body() dto: CreateDocumentDto) {
@@ -77,18 +79,21 @@ export class DocumentsController {
   }
 
   @Get(":id")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_READ)
   get(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
     return this.docs.get(actor, id);
   }
 
   @Patch(":id")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   update(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateDocumentDto) {
     return this.docs.updateDocument(actor, id, dto);
   }
 
   @Post(":id/revisions")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   @ApiOperation({ summary: "Open a new revision of a released document (previous release is preserved)" })
   newRevision(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Body() dto: NewDocumentRevisionDto) {
@@ -96,6 +101,7 @@ export class DocumentsController {
   }
 
   @Patch(":id/revisions/:revId")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   @ApiOperation({ summary: "Edit a draft revision (native form data / change summary)" })
   updateDraft(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("revId", ParseUUIDPipe) revId: string, @Body() dto: UpdateRevisionDraftDto) {
@@ -103,12 +109,14 @@ export class DocumentsController {
   }
 
   @Post(":id/revisions/:revId/files")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   attachFile(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("revId", ParseUUIDPipe) revId: string, @Body() dto: AttachRevisionFileDto) {
     return this.docs.attachFile(actor, id, revId, dto);
   }
 
   @Delete(":id/revisions/:revId/files/:linkId")
+  @AudienceScope("any")
   @HttpCode(204)
   @RequirePermissions(P.DOCUMENT_WRITE)
   removeFile(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("revId", ParseUUIDPipe) revId: string, @Param("linkId", ParseUUIDPipe) linkId: string) {
@@ -116,6 +124,7 @@ export class DocumentsController {
   }
 
   @Post(":id/revisions/:revId/submit")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   @ApiOperation({ summary: "Submit a draft revision for review (content is hashed and frozen)" })
   submit(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("revId", ParseUUIDPipe) revId: string, @Body() dto: RevisionVersionDto) {
@@ -123,12 +132,14 @@ export class DocumentsController {
   }
 
   @Post(":id/revisions/:revId/withdraw")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   withdraw(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("revId", ParseUUIDPipe) revId: string, @Body() dto: ReasonDto) {
     return this.docs.withdraw(actor, id, revId, dto.reason);
   }
 
   @Post(":id/revisions/:revId/reopen")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   @ApiOperation({ summary: "Return a rejected revision to draft for revision and resubmission" })
   reopen(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("revId", ParseUUIDPipe) revId: string, @Body() dto: RevisionVersionDto) {
@@ -143,6 +154,7 @@ export class DocumentsController {
   }
 
   @Post(":id/revisions/:revId/acknowledgments")
+  @AudienceScope("any")
   @RequirePermissions(P.DOCUMENT_WRITE)
   @ApiOperation({ summary: "Record a supplier acknowledgment of a released revision" })
   acknowledge(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("revId", ParseUUIDPipe) revId: string, @Body() dto: AcknowledgmentDto) {
