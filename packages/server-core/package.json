@@ -1,0 +1,29 @@
+{
+  "name": "@sqms/server-core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
+    "@aws-sdk/lib-storage": "3.1152.0",
+    "@sqms/db": "workspace:*",
+    "@sqms/shared": "workspace:*",
+    "bullmq": "5.81.5",
+    "ioredis": "5.11.1",
+    "nodemailer": "7.0.13",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/nodemailer": "7.0.12",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

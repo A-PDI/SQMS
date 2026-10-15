@@ -1,0 +1,233 @@
+// Notifications, activity timeline, audit trail, saved views, settings, numbering, outbox, external references.
+
+enum DeliveryChannel {
+  IN_APP
+  EMAIL
+}
+
+enum DeliveryStatus {
+  PENDING
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+  DENIED
+}
+
+enum OutboxStatus {
+  PENDING
+  DISPATCHED
+  FAILED
+}
+
+enum NumberingReset {
+  NEVER
+  YEARLY
+}
+
+model Notification {
+  id         String      @id @default(uuid(7)) @db.Char(36)
+  userId     String      @db.Char(36)
+  eventType  String      @db.VarChar(80)
+  title      String      @db.VarChar(300)
+  body       String?     @db.Text
+  entityType EntityType?
+  entityId   String?     @db.Char(36)
+  link       String?     @db.VarChar(500)
+  readAt     DateTime?   @db.DateTime(3)
+  createdAt  DateTime    @default(now()) @db.DateTime(3)
+
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+enum DeliveryKind {
+  NOTIFICATION
+  DIRECT
+}
+
+/// Delivery attempt tracking. NOTIFICATION deliveries render from the linked notification; DIRECT deliveries
+/// (password reset, invitations) carry a pre-rendered subject/body that the worker purges after sending.
+model NotificationDelivery {
+  id                String          @id @default(uuid(7)) @db.Char(36)
+  kind              DeliveryKind    @default(NOTIFICATION)
+  notificationId    String?         @db.Char(36)
+  channel           DeliveryChannel
+  status            DeliveryStatus  @default(PENDING)
+  recipient         String          @db.VarChar(254)
+  subject           String?         @db.VarChar(300)
+  body              String?         @db.Text
+  attempts          Int             @default(0)
+  lastError         String?         @db.Text
+  providerMessageId String?         @db.VarChar(255)
+  queuedAt          DateTime?       @db.DateTime(3)
+  sentAt            DateTime?       @db.DateTime(3)
+  createdAt         DateTime        @default(now()) @db.DateTime(3)
+  updatedAt         DateTime        @updatedAt @db.DateTime(3)
+
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("notification_deliveries")
+}
+
+model NotificationPreference {
+  id        String          @id @default(uuid(7)) @db.Char(36)
+  userId    String          @db.Char(36)
+  eventType String          @db.VarChar(80)
+  channel   DeliveryChannel
+  enabled   Boolean         @default(true)
+  updatedAt DateTime        @updatedAt @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventType, channel])
+  @@map("notification_preferences")
+}
+
+/// Human-friendly activity timeline (record-level histories). Not a substitute for the audit trail.
+model ActivityEvent {
+  id          String     @id @default(uuid(7)) @db.Char(36)
+  entityType  EntityType
+  entityId    String     @db.Char(36)
+  entityLabel String?    @db.VarChar(200)
+  actorId     String?    @db.Char(36)
+  actorName   String?    @db.VarChar(160)
+  verb        String     @db.VarChar(60)
+  summary     String     @db.VarChar(1000)
+  data        Json?
+  visibility  Visibility @default(INTERNAL)
+  /// Context columns allow timelines to aggregate related activity (e.g. a supplier's full history).
+  supplierId     String? @db.Char(36)
+  internalPartId String? @db.Char(36)
+  projectId      String? @db.Char(36)
+  occurredAt  DateTime   @default(now()) @db.DateTime(3)
+
+  @@index([entityType, entityId, occurredAt])
+  @@index([supplierId, occurredAt])
+  @@index([internalPartId, occurredAt])
+  @@index([projectId, occurredAt])
+  @@index([occurredAt])
+  @@map("activity_events")
+}
+
+/// Append-only audit trail. The application never updates or deletes rows; database triggers reject
+/// UPDATE/DELETE and the application database account is granted INSERT/SELECT only on this table.
+model AuditEvent {
+  id            String       @id @default(uuid(7)) @db.Char(36)
+  occurredAt    DateTime     @default(now()) @db.DateTime(3)
+  actorType     ActorType
+  actorUserId   String?      @db.Char(36)
+  actorEmail    String?      @db.VarChar(254)
+  actorOrganizationId String? @db.Char(36)
+  eventType     String       @db.VarChar(100)
+  outcome       AuditOutcome @default(SUCCESS)
+  entityType    EntityType?
+  entityId      String?      @db.Char(36)
+  entityLabel   String?      @db.VarChar(200)
+  /// Before/after values of controlled fields: {"field":{"before":..,"after":..}}
+  changes       Json?
+  metadata      Json?
+  reason        String?      @db.Text
+  correlationId String?      @db.VarChar(64)
+  ipAddress     String?      @db.VarChar(64)
+  userAgent     String?      @db.VarChar(400)
+
+  @@index([entityType, entityId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@index([eventType, occurredAt])
+  @@index([occurredAt])
+  @@map("audit_events")
+}
+
+model SavedView {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  userId    String   @db.Char(36)
+  module    String   @db.VarChar(60)
+  name      String   @db.VarChar(120)
+  filters   Json
+  sort      String?  @db.VarChar(120)
+  isShared  Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module, name])
+  @@map("saved_views")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid(7)) @db.Char(36)
+  key         String   @unique @db.VarChar(100)
+  value       Json
+  description String?  @db.VarChar(500)
+  updatedById String?  @db.Char(36)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @db.DateTime(3)
+
+  @@map("system_settings")
+}
+
+/// Configurable human-readable numbering, e.g. pattern "{prefix}-{yyyy}-{seq}" with padding 4 -> NCR-2026-0007.
+model NumberingSequence {
+  id            String         @id @default(uuid(7)) @db.Char(36)
+  key           String         @unique @db.VarChar(60)
+  prefix        String         @db.VarChar(20)
+  pattern       String         @default("{prefix}-{yyyy}-{seq}") @db.VarChar(80)
+  padding       Int            @default(4)
+  nextValue     Int            @default(1)
+  resetPolicy   NumberingReset @default(YEARLY)
+  currentPeriod String?        @db.VarChar(10)
+  updatedAt     DateTime       @updatedAt @db.DateTime(3)
+
+  @@map("numbering_sequences")
+}
+
+/// Transactional outbox for reliable integration events (ERP, Fishbowl, QuickBooks, Power BI, webhooks).
+model OutboxEvent {
+  id            String       @id @default(uuid(7)) @db.Char(36)
+  eventType     String       @db.VarChar(100)
+  aggregateType EntityType
+  aggregateId   String       @db.Char(36)
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  availableAt   DateTime     @default(now()) @db.DateTime(3)
+  dispatchedAt  DateTime?    @db.DateTime(3)
+  lastError     String?      @db.Text
+  createdAt     DateTime     @default(now()) @db.DateTime(3)
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}
+
+/// Identifiers of records in external systems. Kept separate from internal primary keys.
+model ExternalReference {
+  id         String     @id @default(uuid(7)) @db.Char(36)
+  system     String     @db.VarChar(60)
+  entityType EntityType
+  entityId   String     @db.Char(36)
+  externalId String     @db.VarChar(200)
+  metadata   Json?
+  createdAt  DateTime   @default(now()) @db.DateTime(3)
+  updatedAt  DateTime   @updatedAt @db.DateTime(3)
+
+  @@unique([system, entityType, externalId])
+  @@index([entityType, entityId])
+  @@map("external_references")
+}

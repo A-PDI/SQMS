@@ -1,0 +1,279 @@
+// Suppliers, manufacturing sites, contacts, capabilities, certifications, qualification history, performance.
+
+enum SupplierStatus {
+  PROSPECTIVE
+  UNDER_EVALUATION
+  APPROVED
+  CONDITIONALLY_APPROVED
+  SUSPENDED
+  INACTIVE
+}
+
+enum AddressType {
+  LEGAL
+  MAILING
+  BILLING
+  SHIPPING
+}
+
+enum CertificationStatus {
+  PENDING_VERIFICATION
+  VALID
+  EXPIRED
+  REVOKED
+}
+
+enum SupplierQualificationType {
+  INITIAL
+  REQUALIFICATION
+  PERIODIC_REVIEW
+  SCOPE_EXTENSION
+}
+
+enum SupplierQualificationStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  CONDITIONALLY_APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum MetricSource {
+  CALCULATED
+  MANUAL
+}
+
+model Supplier {
+  id              String         @id @default(uuid(7)) @db.Char(36)
+  organizationId  String         @unique @db.Char(36)
+  supplierNumber  String         @unique @db.VarChar(40)
+  name            String         @db.VarChar(200)
+  legalName       String?        @db.VarChar(250)
+  website         String?        @db.VarChar(300)
+  country         String         @db.Char(2)
+  status          SupplierStatus @default(PROSPECTIVE)
+  statusReason    String?        @db.VarChar(1000)
+  statusChangedAt DateTime?      @db.DateTime(3)
+  dunsNumber      String?        @db.VarChar(20)
+  taxId           String?        @db.VarChar(40)
+  notes           String?        @db.Text
+  createdById     String?        @db.Char(36)
+  createdAt       DateTime       @default(now()) @db.DateTime(3)
+  updatedAt       DateTime       @updatedAt @db.DateTime(3)
+  archivedAt      DateTime?      @db.DateTime(3)
+  version         Int            @default(0)
+
+  organization     Organization              @relation(fields: [organizationId], references: [id])
+  addresses        SupplierAddress[]
+  sites            SupplierSite[]
+  contacts         Contact[]
+  capabilities     SupplierCapability[]
+  categories       SupplierProductCategory[]
+  certifications   SupplierCertification[]
+  qualifications   SupplierQualification[]
+  supplierParts    SupplierPart[]
+  supplierProducts SupplierProduct[]
+  configurations   ProductConfiguration[]
+  sourcingProjects SourcingProject[]
+  changeRequests   ChangeRequest[]
+  deviations       Deviation[]
+  nonconformances  Nonconformance[]
+  correctiveActions CorrectiveAction[]
+  productQualifications ProductQualification[]
+  metrics          SupplierPerformanceMetric[]
+  documents        DocumentRecord[]
+
+  @@index([status])
+  @@index([name])
+  @@fulltext([name, legalName, supplierNumber])
+  @@map("suppliers")
+}
+
+model SupplierAddress {
+  id          String      @id @default(uuid(7)) @db.Char(36)
+  supplierId  String      @db.Char(36)
+  type        AddressType
+  line1       String      @db.VarChar(200)
+  line2       String?     @db.VarChar(200)
+  city        String      @db.VarChar(120)
+  region      String?     @db.VarChar(120)
+  postalCode  String?     @db.VarChar(20)
+  country     String      @db.Char(2)
+  createdAt   DateTime    @default(now()) @db.DateTime(3)
+  updatedAt   DateTime    @updatedAt @db.DateTime(3)
+  supplier    Supplier    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+  @@map("supplier_addresses")
+}
+
+/// Manufacturing location. Approvals are site-specific.
+model SupplierSite {
+  id          String         @id @default(uuid(7)) @db.Char(36)
+  supplierId  String         @db.Char(36)
+  siteCode    String         @db.VarChar(40)
+  name        String         @db.VarChar(200)
+  line1       String?        @db.VarChar(200)
+  line2       String?        @db.VarChar(200)
+  city        String         @db.VarChar(120)
+  region      String?        @db.VarChar(120)
+  postalCode  String?        @db.VarChar(20)
+  country     String         @db.Char(2)
+  isManufacturing Boolean    @default(true)
+  status      SupplierStatus @default(PROSPECTIVE)
+  processes   String?        @db.Text
+  notes       String?        @db.Text
+  createdAt   DateTime       @default(now()) @db.DateTime(3)
+  updatedAt   DateTime       @updatedAt @db.DateTime(3)
+  archivedAt  DateTime?      @db.DateTime(3)
+
+  supplier         Supplier              @relation(fields: [supplierId], references: [id])
+  contacts         Contact[]
+  certifications   SupplierCertification[]
+  supplierProducts SupplierProduct[]
+  qualifications   SupplierQualification[]
+  sourcingProjects SourcingProject[]
+  changeRequests   ChangeRequest[]       @relation("ChangeRequestCurrentSite")
+  proposedChangeRequests ChangeRequest[] @relation("ChangeRequestProposedSite")
+  nonconformances  Nonconformance[]
+  correctiveActions CorrectiveAction[]
+
+  @@unique([supplierId, siteCode])
+  @@map("supplier_sites")
+}
+
+model Contact {
+  id          String    @id @default(uuid(7)) @db.Char(36)
+  supplierId  String    @db.Char(36)
+  siteId      String?   @db.Char(36)
+  name        String    @db.VarChar(160)
+  title       String?   @db.VarChar(120)
+  email       String?   @db.VarChar(254)
+  phone       String?   @db.VarChar(40)
+  role        String?   @db.VarChar(80)
+  isPrimary   Boolean   @default(false)
+  notes       String?   @db.VarChar(1000)
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @db.DateTime(3)
+  archivedAt  DateTime? @db.DateTime(3)
+  supplier    Supplier      @relation(fields: [supplierId], references: [id])
+  site        SupplierSite? @relation(fields: [siteId], references: [id])
+
+  @@index([supplierId])
+  @@index([siteId])
+  @@map("contacts")
+}
+
+/// Manufacturing capability lookup (e.g. CNC machining, investment casting, PVD coating).
+model Capability {
+  id          String    @id @default(uuid(7)) @db.Char(36)
+  code        String    @unique @db.VarChar(60)
+  name        String    @db.VarChar(160)
+  description String?   @db.VarChar(500)
+  isSpecialProcess Boolean @default(false)
+  isActive    Boolean   @default(true)
+  suppliers   SupplierCapability[]
+
+  @@map("capabilities")
+}
+
+model SupplierCapability {
+  supplierId   String     @db.Char(36)
+  capabilityId String     @db.Char(36)
+  notes        String?    @db.VarChar(500)
+  createdAt    DateTime   @default(now()) @db.DateTime(3)
+  supplier     Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  capability   Capability @relation(fields: [capabilityId], references: [id])
+
+  @@id([supplierId, capabilityId])
+  @@index([capabilityId])
+  @@map("supplier_capabilities")
+}
+
+model SupplierProductCategory {
+  supplierId String          @db.Char(36)
+  categoryId String          @db.Char(36)
+  supplier   Supplier        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  category   ProductCategory @relation(fields: [categoryId], references: [id])
+
+  @@id([supplierId, categoryId])
+  @@index([categoryId])
+  @@map("supplier_product_categories")
+}
+
+model SupplierCertification {
+  id                String              @id @default(uuid(7)) @db.Char(36)
+  supplierId        String              @db.Char(36)
+  siteId            String?             @db.Char(36)
+  standard          String              @db.VarChar(80)
+  certificateNumber String?             @db.VarChar(80)
+  registrar         String?             @db.VarChar(160)
+  scope             String?             @db.VarChar(1000)
+  issuedAt          DateTime?           @db.Date
+  expiresAt         DateTime?           @db.Date
+  status            CertificationStatus @default(PENDING_VERIFICATION)
+  documentId        String?             @db.Char(36)
+  lastExpiryAlertAt DateTime?           @db.DateTime(3)
+  createdAt         DateTime            @default(now()) @db.DateTime(3)
+  updatedAt         DateTime            @updatedAt @db.DateTime(3)
+  archivedAt        DateTime?           @db.DateTime(3)
+
+  supplier Supplier        @relation(fields: [supplierId], references: [id])
+  site     SupplierSite?   @relation(fields: [siteId], references: [id])
+  document DocumentRecord? @relation(fields: [documentId], references: [id])
+
+  @@index([supplierId])
+  @@index([expiresAt])
+  @@map("supplier_certifications")
+}
+
+/// Supplier-level (or site-level) qualification decision history. Product approval is a separate decision.
+model SupplierQualification {
+  id              String                      @id @default(uuid(7)) @db.Char(36)
+  number          String                      @unique @db.VarChar(40)
+  supplierId      String                      @db.Char(36)
+  siteId          String?                     @db.Char(36)
+  type            SupplierQualificationType
+  status          SupplierQualificationStatus @default(DRAFT)
+  scope           String?                     @db.VarChar(1000)
+  summary         String?                     @db.Text
+  auditScore      Decimal?                    @db.Decimal(5, 2)
+  proposedStatus  SupplierStatus
+  conditions      String?                     @db.Text
+  validUntil      DateTime?                   @db.Date
+  decidedById     String?                     @db.Char(36)
+  decidedAt       DateTime?                   @db.DateTime(3)
+  decisionComment String?                     @db.Text
+  workflowInstanceId String?                  @unique @db.Char(36)
+  createdById     String                      @db.Char(36)
+  createdAt       DateTime                    @default(now()) @db.DateTime(3)
+  updatedAt       DateTime                    @updatedAt @db.DateTime(3)
+  version         Int                         @default(0)
+
+  supplier Supplier      @relation(fields: [supplierId], references: [id])
+  site     SupplierSite? @relation(fields: [siteId], references: [id])
+  workflowInstance WorkflowInstance? @relation(fields: [workflowInstanceId], references: [id])
+
+  @@index([supplierId, status])
+  @@map("supplier_qualifications")
+}
+
+model SupplierPerformanceMetric {
+  id          String       @id @default(uuid(7)) @db.Char(36)
+  supplierId  String       @db.Char(36)
+  periodStart DateTime     @db.Date
+  periodEnd   DateTime     @db.Date
+  metricKey   String       @db.VarChar(60)
+  value       Decimal      @db.Decimal(14, 4)
+  target      Decimal?     @db.Decimal(14, 4)
+  unit        String?      @db.VarChar(20)
+  source      MetricSource @default(CALCULATED)
+  notes       String?      @db.VarChar(1000)
+  computedAt  DateTime     @default(now()) @db.DateTime(3)
+  supplier    Supplier     @relation(fields: [supplierId], references: [id])
+
+  @@unique([supplierId, metricKey, periodStart, periodEnd])
+  @@index([periodStart])
+  @@map("supplier_performance_metrics")
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@sqms/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "lint": "prisma validate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "seed": "node dist/seed/run.js reference",
+    
+    "test": "echo \"@sqms/db: covered by API integration tests\""
+  },
+  "dependencies": {
+    "@prisma/adapter-mariadb": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "@sqms/shared": "workspace:*",
+    "argon2": "0.44.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "prisma": "7.10.0",
+    "typescript": "5.9.3"
+  }
+}

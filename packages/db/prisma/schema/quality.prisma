@@ -1,0 +1,643 @@
+// Product qualification, inspections, tests, FAI, approval packages, change control,
+// deviations/concessions, nonconformances, supplier corrective actions.
+
+enum ProductQualificationStatus {
+  DRAFT
+  DOCUMENTATION_PENDING
+  EVALUATION
+  VALIDATION
+  APPROVAL_REVIEW
+  APPROVED
+  REJECTED
+  ON_HOLD
+}
+
+enum InspectionType {
+  FIRST_ARTICLE
+  INCOMING
+  IN_PROCESS
+  FINAL
+}
+
+enum InspectionOutcome {
+  PASS
+  FAIL
+  CONDITIONAL
+  NOT_INSPECTED
+}
+
+enum EvidenceStatus {
+  PLANNED
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+enum TestType {
+  FUNCTIONAL
+  PERFORMANCE
+  DURABILITY
+  LEAK
+  FLOW
+  MATERIAL
+  COATING
+  DIMENSIONAL
+  ENVIRONMENTAL
+  OTHER
+}
+
+enum ChangeCategory {
+  DESIGN
+  DIMENSIONAL
+  MATERIAL
+  COATING
+  HEAT_TREATMENT
+  PROCESS
+  EQUIPMENT_TOOLING
+  LOCATION
+  SUB_TIER
+  INSPECTION_METHOD
+  OTHER
+}
+
+enum ChangeRequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  INFO_REQUIRED
+  VALIDATION_REQUIRED
+  APPROVED
+  REJECTED
+  IMPLEMENTATION_VERIFIED
+  CLOSED
+  WITHDRAWN
+}
+
+enum ChangeDisposition {
+  APPROVED
+  APPROVED_WITH_CONDITIONS
+  REJECTED
+}
+
+enum ImpactRecommendation {
+  APPROVE
+  APPROVE_WITH_CONDITIONS
+  REJECT
+  NEED_INFORMATION
+}
+
+enum Discipline {
+  ENGINEERING
+  QUALITY
+  PURCHASING
+  MANUFACTURING
+  MANAGEMENT
+}
+
+enum DeviationType {
+  DEVIATION
+  CONCESSION
+}
+
+enum DeviationStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  EXPIRED
+  CLOSED
+  WITHDRAWN
+}
+
+enum NcrSeverity {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+enum NcrSource {
+  INCOMING_INSPECTION
+  IN_PROCESS
+  FINAL_INSPECTION
+  CUSTOMER_RETURN
+  FIELD_FAILURE
+  QUALIFICATION
+  AUDIT
+  OTHER
+}
+
+enum NcrStatus {
+  OPEN
+  CONTAINED
+  UNDER_INVESTIGATION
+  DISPOSITIONED
+  CLOSED
+  CANCELLED
+}
+
+enum NcrDisposition {
+  USE_AS_IS_CONCESSION
+  REWORK
+  REPAIR
+  RETURN_TO_SUPPLIER
+  SCRAP
+  HOLD
+}
+
+enum ScarStatus {
+  DRAFT
+  ISSUED
+  RESPONSE_SUBMITTED
+  RESPONSE_REJECTED
+  ACCEPTED
+  VERIFICATION
+  CLOSED
+  CANCELLED
+}
+
+enum ScarResponseStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+enum EffectivenessResult {
+  EFFECTIVE
+  NOT_EFFECTIVE
+}
+
+/// Product qualification plan & approval for one supplier-product configuration revision at one site.
+model ProductQualification {
+  id                      String                     @id @default(uuid(7)) @db.Char(36)
+  number                  String                     @unique @db.VarChar(40)
+  title                   String                     @db.VarChar(250)
+  sourcingProjectId       String?                    @db.Char(36)
+  changeRequestId         String?                    @unique @db.Char(36)
+  supplierId              String                     @db.Char(36)
+  supplierProductId       String                     @db.Char(36)
+  configurationRevisionId String                     @db.Char(36)
+  pathway                 SourcingPathwayCode?
+  riskLevel               RiskLevel
+  status                  ProductQualificationStatus @default(DRAFT)
+  workflowKey             String                     @db.VarChar(80)
+  requiredSampleQty       Int?
+  sampleNotes             String?                    @db.Text
+  inspectionPlanNotes     String?                    @db.Text
+  approvalRestrictions    String?                    @db.Text
+  deviationsSummary       String?                    @db.Text
+  decisionComment         String?                    @db.Text
+  decidedById             String?                    @db.Char(36)
+  decidedAt               DateTime?                  @db.DateTime(3)
+  holdReason              String?                    @db.Text
+  workflowInstanceId      String?                    @unique @db.Char(36)
+  supplierVisible         Boolean                    @default(false)
+  createdById             String                     @db.Char(36)
+  createdAt               DateTime                   @default(now()) @db.DateTime(3)
+  updatedAt               DateTime                   @updatedAt @db.DateTime(3)
+  version                 Int                        @default(0)
+
+  sourcingProject        SourcingProject?        @relation(fields: [sourcingProjectId], references: [id])
+  changeRequest          ChangeRequest?          @relation("ChangeRequestRequalification", fields: [changeRequestId], references: [id])
+  supplier               Supplier                @relation(fields: [supplierId], references: [id])
+  supplierProduct        SupplierProduct         @relation(fields: [supplierProductId], references: [id])
+  configurationRevision  ConfigurationRevision   @relation(fields: [configurationRevisionId], references: [id])
+  workflowInstance       WorkflowInstance?       @relation(fields: [workflowInstanceId], references: [id])
+  requiredDocuments      RequiredDocument[]
+  inspectionRequirements InspectionRequirement[]
+  inspectionResults      InspectionResult[]
+  tests                  TestRecord[]
+  firstArticles          FirstArticleInspection[]
+  approvalPackage        ApprovalPackage?
+  productApproval        ProductApproval?
+  deviations             Deviation[]
+  nonconformances        Nonconformance[]
+
+  @@index([supplierId, status])
+  @@index([configurationRevisionId])
+  @@map("product_qualifications")
+}
+
+model InspectionRequirement {
+  id                      String         @id @default(uuid(7)) @db.Char(36)
+  qualificationId         String?        @db.Char(36)
+  configurationRevisionId String         @db.Char(36)
+  characteristicId        String?        @db.Char(36)
+  type                    InspectionType
+  description             String         @db.VarChar(500)
+  method                  String?        @db.VarChar(300)
+  sampleSize              String?        @db.VarChar(80)
+  acceptanceCriteria      String?        @db.Text
+  isRequired              Boolean        @default(true)
+  sortOrder               Int            @default(0)
+  createdAt               DateTime       @default(now()) @db.DateTime(3)
+
+  qualification         ProductQualification?   @relation(fields: [qualificationId], references: [id])
+  configurationRevision ConfigurationRevision   @relation(fields: [configurationRevisionId], references: [id])
+  characteristic        CriticalCharacteristic? @relation(fields: [characteristicId], references: [id])
+  results               InspectionResult[]
+
+  @@index([qualificationId])
+  @@index([configurationRevisionId])
+  @@map("inspection_requirements")
+}
+
+model InspectionResult {
+  id                      String            @id @default(uuid(7)) @db.Char(36)
+  qualificationId         String?           @db.Char(36)
+  inspectionRequirementId String?           @db.Char(36)
+  characteristicId        String?           @db.Char(36)
+  firstArticleId          String?           @db.Char(36)
+  sampleIdentifier        String?           @db.VarChar(80)
+  measuredValue           String?           @db.VarChar(200)
+  numericValue            Decimal?          @db.Decimal(18, 6)
+  outcome                 InspectionOutcome
+  notes                   String?           @db.Text
+  inspectedById           String            @db.Char(36)
+  inspectedAt             DateTime          @default(now()) @db.DateTime(3)
+
+  qualification         ProductQualification?   @relation(fields: [qualificationId], references: [id])
+  inspectionRequirement InspectionRequirement?  @relation(fields: [inspectionRequirementId], references: [id])
+  characteristic        CriticalCharacteristic? @relation(fields: [characteristicId], references: [id])
+  firstArticle          FirstArticleInspection? @relation(fields: [firstArticleId], references: [id])
+
+  @@index([qualificationId])
+  @@index([firstArticleId])
+  @@map("inspection_results")
+}
+
+model TestRecord {
+  id                 String             @id @default(uuid(7)) @db.Char(36)
+  qualificationId    String             @db.Char(36)
+  testType           TestType
+  name               String             @db.VarChar(250)
+  procedure          String?            @db.VarChar(500)
+  acceptanceCriteria String             @db.Text
+  isRequired         Boolean            @default(true)
+  status             EvidenceStatus     @default(PLANNED)
+  outcome            InspectionOutcome?
+  resultSummary      String?            @db.Text
+  laboratory         String?            @db.VarChar(200)
+  testedAt           DateTime?          @db.DateTime(3)
+  documentId         String?            @db.Char(36)
+  reviewedById       String?            @db.Char(36)
+  reviewedAt         DateTime?          @db.DateTime(3)
+  reviewComment      String?            @db.Text
+  createdById        String             @db.Char(36)
+  createdAt          DateTime           @default(now()) @db.DateTime(3)
+  updatedAt          DateTime           @updatedAt @db.DateTime(3)
+  version            Int                @default(0)
+
+  qualification ProductQualification @relation(fields: [qualificationId], references: [id])
+
+  @@index([qualificationId, status])
+  @@map("test_records")
+}
+
+model FirstArticleInspection {
+  id                      String             @id @default(uuid(7)) @db.Char(36)
+  number                  String             @unique @db.VarChar(40)
+  qualificationId         String             @db.Char(36)
+  configurationRevisionId String             @db.Char(36)
+  serialNumbers           String?            @db.Text
+  inspectionDate          DateTime?          @db.Date
+  characteristicsInspected Int               @default(0)
+  nonconformingCount      Int                @default(0)
+  outcome                 InspectionOutcome?
+  status                  EvidenceStatus     @default(PLANNED)
+  documentId              String?            @db.Char(36)
+  summary                 String?            @db.Text
+  reviewedById            String?            @db.Char(36)
+  reviewedAt              DateTime?          @db.DateTime(3)
+  reviewComment           String?            @db.Text
+  createdById             String             @db.Char(36)
+  createdAt               DateTime           @default(now()) @db.DateTime(3)
+  updatedAt               DateTime           @updatedAt @db.DateTime(3)
+  version                 Int                @default(0)
+
+  qualification ProductQualification @relation(fields: [qualificationId], references: [id])
+  results       InspectionResult[]
+
+  @@index([qualificationId, status])
+  @@map("first_article_inspections")
+}
+
+/// Release snapshot: the exact configuration revision, document revisions and evidence used for approval.
+model ApprovalPackage {
+  id                      String   @id @default(uuid(7)) @db.Char(36)
+  number                  String   @unique @db.VarChar(40)
+  qualificationId         String   @unique @db.Char(36)
+  configurationRevisionId String   @db.Char(36)
+  snapshot                Json
+  snapshotHash            String   @db.Char(64)
+  createdById             String   @db.Char(36)
+  createdAt               DateTime @default(now()) @db.DateTime(3)
+
+  qualification   ProductQualification  @relation(fields: [qualificationId], references: [id])
+  items           ApprovalPackageItem[]
+  productApproval ProductApproval?
+
+  @@map("approval_packages")
+}
+
+model ApprovalPackageItem {
+  id                 String   @id @default(uuid(7)) @db.Char(36)
+  packageId          String   @db.Char(36)
+  documentRevisionId String   @db.Char(36)
+  documentTypeCode   String   @db.VarChar(20)
+  contentHash        String?  @db.Char(64)
+
+  package          ApprovalPackage  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  documentRevision DocumentRevision @relation(fields: [documentRevisionId], references: [id])
+
+  @@unique([packageId, documentRevisionId])
+  @@index([documentRevisionId])
+  @@map("approval_package_items")
+}
+
+/// Supplier Product / Process Change Request (SCR / PCN).
+model ChangeRequest {
+  id                        String              @id @default(uuid(7)) @db.Char(36)
+  number                    String              @unique @db.VarChar(40)
+  title                     String              @db.VarChar(250)
+  supplierId                String              @db.Char(36)
+  supplierProductId         String              @db.Char(36)
+  internalPartId            String              @db.Char(36)
+  supplierPartId            String              @db.Char(36)
+  currentSiteId             String              @db.Char(36)
+  proposedSiteId            String?             @db.Char(36)
+  currentRevisionId         String              @db.Char(36)
+  proposedRevisionId        String?             @unique @db.Char(36)
+  reason                    String              @db.Text
+  description               String              @db.Text
+  affectedCharacteristics   String?             @db.Text
+  proposedImplementationDate DateTime?          @db.Date
+  inventoryImpact           String?             @db.Text
+  wipImpact                 String?             @db.Text
+  riskLevel                 RiskLevel?
+  riskAssessment            String?             @db.Text
+  requiredValidation        String?             @db.Text
+  status                    ChangeRequestStatus @default(DRAFT)
+  submittedByOrganizationId String              @db.Char(36)
+  submittedById             String?             @db.Char(36)
+  submittedAt               DateTime?           @db.DateTime(3)
+  infoRequest               String?             @db.Text
+  disposition               ChangeDisposition?
+  dispositionConditions     String?             @db.Text
+  decisionComment           String?             @db.Text
+  decidedById               String?             @db.Char(36)
+  decidedAt                 DateTime?           @db.DateTime(3)
+  implementationNotes       String?             @db.Text
+  implementationVerifiedById String?            @db.Char(36)
+  implementationVerifiedAt  DateTime?           @db.DateTime(3)
+  shipmentAuthorizedAt      DateTime?           @db.DateTime(3)
+  closedAt                  DateTime?           @db.DateTime(3)
+  withdrawnAt               DateTime?           @db.DateTime(3)
+  supplierVisible           Boolean             @default(true)
+  workflowInstanceId        String?             @unique @db.Char(36)
+  createdById               String              @db.Char(36)
+  createdAt                 DateTime            @default(now()) @db.DateTime(3)
+  updatedAt                 DateTime            @updatedAt @db.DateTime(3)
+  version                   Int                 @default(0)
+
+  supplier                Supplier                 @relation(fields: [supplierId], references: [id])
+  supplierProduct         SupplierProduct          @relation(fields: [supplierProductId], references: [id])
+  internalPart            InternalPart             @relation(fields: [internalPartId], references: [id])
+  supplierPart            SupplierPart             @relation(fields: [supplierPartId], references: [id])
+  currentSite             SupplierSite             @relation("ChangeRequestCurrentSite", fields: [currentSiteId], references: [id])
+  proposedSite            SupplierSite?            @relation("ChangeRequestProposedSite", fields: [proposedSiteId], references: [id])
+  currentRevision         ConfigurationRevision    @relation("ChangeRequestCurrentRevision", fields: [currentRevisionId], references: [id])
+  proposedRevision        ConfigurationRevision?   @relation("ChangeRequestProposedRevision", fields: [proposedRevisionId], references: [id])
+  submittedByOrganization Organization             @relation("ChangeRequestSubmitterOrg", fields: [submittedByOrganizationId], references: [id])
+  workflowInstance        WorkflowInstance?        @relation(fields: [workflowInstanceId], references: [id])
+  categories              ChangeRequestCategory[]
+  impactAssessments       ChangeImpactAssessment[]
+  requiredDocuments       RequiredDocument[]
+  requalification         ProductQualification?    @relation("ChangeRequestRequalification")
+
+  @@index([supplierId, status])
+  @@index([internalPartId])
+  @@index([status, createdAt])
+  @@fulltext([number, title])
+  @@map("change_requests")
+}
+
+model ChangeRequestCategory {
+  changeRequestId String         @db.Char(36)
+  category        ChangeCategory
+  changeRequest   ChangeRequest  @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+
+  @@id([changeRequestId, category])
+  @@index([category])
+  @@map("change_request_categories")
+}
+
+/// Change Impact & Requalification Decision (CIRD) input from one discipline.
+model ChangeImpactAssessment {
+  id                           String               @id @default(uuid(7)) @db.Char(36)
+  changeRequestId              String               @db.Char(36)
+  discipline                   Discipline
+  assessorId                   String               @db.Char(36)
+  impactSummary                String               @db.Text
+  affectsFormFitFunction       Boolean              @default(false)
+  affectsInterchangeability    Boolean              @default(false)
+  requiresFai                  Boolean              @default(false)
+  requiresPartialRequalification Boolean            @default(false)
+  requiresFunctionalTest       Boolean              @default(false)
+  requiresMaterialCertificates Boolean              @default(false)
+  requiresControlPlanUpdate    Boolean              @default(false)
+  requiresSpecificationRevision Boolean             @default(false)
+  requiresNewProductApproval   Boolean              @default(false)
+  recommendation               ImpactRecommendation
+  comments                     String?              @db.Text
+  createdAt                    DateTime             @default(now()) @db.DateTime(3)
+  updatedAt                    DateTime             @updatedAt @db.DateTime(3)
+
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [id])
+
+  @@unique([changeRequestId, discipline])
+  @@map("change_impact_assessments")
+}
+
+/// Temporary Deviation / Concession Request (DCR).
+model Deviation {
+  id                      String          @id @default(uuid(7)) @db.Char(36)
+  number                  String          @unique @db.VarChar(40)
+  type                    DeviationType
+  title                   String          @db.VarChar(250)
+  supplierId              String          @db.Char(36)
+  supplierProductId       String?         @db.Char(36)
+  configurationRevisionId String?         @db.Char(36)
+  qualificationId         String?         @db.Char(36)
+  ncrId                   String?         @db.Char(36)
+  description             String          @db.Text
+  justification           String          @db.Text
+  riskAssessment          String?         @db.Text
+  quantityLimit           Int?
+  lotNumbers              String?         @db.Text
+  startDate               DateTime?       @db.Date
+  endDate                 DateTime?       @db.Date
+  status                  DeviationStatus @default(DRAFT)
+  /// When true, an open deviation blocks product approval until formally dispositioned.
+  blocksApproval          Boolean         @default(true)
+  decisionComment         String?         @db.Text
+  decidedById             String?         @db.Char(36)
+  decidedAt               DateTime?       @db.DateTime(3)
+  supplierVisible         Boolean         @default(true)
+  workflowInstanceId      String?         @unique @db.Char(36)
+  createdById             String          @db.Char(36)
+  createdAt               DateTime        @default(now()) @db.DateTime(3)
+  updatedAt               DateTime        @updatedAt @db.DateTime(3)
+  version                 Int             @default(0)
+
+  supplier              Supplier               @relation(fields: [supplierId], references: [id])
+  supplierProduct       SupplierProduct?       @relation(fields: [supplierProductId], references: [id])
+  configurationRevision ConfigurationRevision? @relation(fields: [configurationRevisionId], references: [id])
+  qualification         ProductQualification?  @relation(fields: [qualificationId], references: [id])
+  ncr                   Nonconformance?        @relation("DeviationNcr", fields: [ncrId], references: [id])
+  workflowInstance      WorkflowInstance?      @relation(fields: [workflowInstanceId], references: [id])
+
+  @@index([supplierId, status])
+  @@index([qualificationId])
+  @@map("deviations")
+}
+
+model Nonconformance {
+  id                      String          @id @default(uuid(7)) @db.Char(36)
+  number                  String          @unique @db.VarChar(40)
+  title                   String          @db.VarChar(250)
+  dateIdentified          DateTime        @db.Date
+  source                  NcrSource
+  supplierId              String          @db.Char(36)
+  siteId                  String?         @db.Char(36)
+  internalPartId          String          @db.Char(36)
+  supplierPartId          String?         @db.Char(36)
+  supplierProductId       String?         @db.Char(36)
+  configurationRevisionId String?         @db.Char(36)
+  characteristicId        String?         @db.Char(36)
+  qualificationId         String?         @db.Char(36)
+  lotNumber               String?         @db.VarChar(80)
+  serialNumbers           String?         @db.Text
+  quantityAffected        Int
+  quantityInspected       Int?
+  defectDescription       String          @db.Text
+  expectedSpecification   String?         @db.Text
+  actualCondition         String?         @db.Text
+  inspectionResults       String?         @db.Text
+  severity                NcrSeverity
+  containmentAction       String?         @db.Text
+  containmentCompletedAt  DateTime?       @db.DateTime(3)
+  disposition             NcrDisposition?
+  dispositionNotes        String?         @db.Text
+  dispositionById         String?         @db.Char(36)
+  dispositionAt           DateTime?       @db.DateTime(3)
+  status                  NcrStatus       @default(OPEN)
+  /// Blocking nonconformances prevent product approval until resolved or formally dispositioned.
+  blocksApproval          Boolean         @default(true)
+  ownerId                 String          @db.Char(36)
+  /// Internal-only investigation notes; never exposed to supplier users.
+  internalNotes           String?         @db.Text
+  supplierVisible         Boolean         @default(false)
+  closedById              String?         @db.Char(36)
+  closedAt                DateTime?       @db.DateTime(3)
+  closureComment          String?         @db.Text
+  createdById             String          @db.Char(36)
+  createdAt               DateTime        @default(now()) @db.DateTime(3)
+  updatedAt               DateTime        @updatedAt @db.DateTime(3)
+  version                 Int             @default(0)
+
+  supplier              Supplier                @relation(fields: [supplierId], references: [id])
+  site                  SupplierSite?           @relation(fields: [siteId], references: [id])
+  internalPart          InternalPart            @relation(fields: [internalPartId], references: [id])
+  supplierPart          SupplierPart?           @relation(fields: [supplierPartId], references: [id])
+  supplierProduct       SupplierProduct?        @relation(fields: [supplierProductId], references: [id])
+  configurationRevision ConfigurationRevision?  @relation(fields: [configurationRevisionId], references: [id])
+  characteristic        CriticalCharacteristic? @relation(fields: [characteristicId], references: [id])
+  qualification         ProductQualification?   @relation(fields: [qualificationId], references: [id])
+  owner                 User                    @relation("NcrOwner", fields: [ownerId], references: [id])
+  correctiveActions     CorrectiveAction[]
+  deviations            Deviation[]             @relation("DeviationNcr")
+
+  @@index([supplierId, status])
+  @@index([internalPartId])
+  @@index([status, dateIdentified])
+  @@fulltext([number, title])
+  @@map("nonconformances")
+}
+
+/// Supplier Corrective Action Request (SCAR).
+model CorrectiveAction {
+  id                       String               @id @default(uuid(7)) @db.Char(36)
+  number                   String               @unique @db.VarChar(40)
+  title                    String               @db.VarChar(250)
+  ncrId                    String?              @db.Char(36)
+  supplierId               String               @db.Char(36)
+  siteId                   String?              @db.Char(36)
+  problemDescription       String               @db.Text
+  requirements             String?              @db.Text
+  severity                 NcrSeverity
+  status                   ScarStatus           @default(DRAFT)
+  issuedById               String?              @db.Char(36)
+  issuedAt                 DateTime?            @db.DateTime(3)
+  containmentDueDate       DateTime?            @db.Date
+  responseDueDate          DateTime             @db.Date
+  escalationLevel          Int                  @default(0)
+  lastEscalatedAt          DateTime?            @db.DateTime(3)
+  /// Internal-only notes; never exposed to supplier users.
+  internalNotes            String?              @db.Text
+  effectivenessDueDate     DateTime?            @db.Date
+  effectivenessResult      EffectivenessResult?
+  effectivenessNotes       String?              @db.Text
+  effectivenessVerifiedById String?             @db.Char(36)
+  effectivenessVerifiedAt  DateTime?            @db.DateTime(3)
+  closedById               String?              @db.Char(36)
+  closedAt                 DateTime?            @db.DateTime(3)
+  closureComment           String?              @db.Text
+  createdById              String               @db.Char(36)
+  createdAt                DateTime             @default(now()) @db.DateTime(3)
+  updatedAt                DateTime             @updatedAt @db.DateTime(3)
+  version                  Int                  @default(0)
+
+  ncr       Nonconformance?            @relation(fields: [ncrId], references: [id])
+  supplier  Supplier                   @relation(fields: [supplierId], references: [id])
+  site      SupplierSite?              @relation(fields: [siteId], references: [id])
+  responses CorrectiveActionResponse[]
+
+  @@index([supplierId, status])
+  @@index([status, responseDueDate])
+  @@fulltext([number, title])
+  @@map("corrective_actions")
+}
+
+/// Supplier response to a SCAR using structured 8D sections. Each resubmission is a new revision.
+model CorrectiveActionResponse {
+  id                        String             @id @default(uuid(7)) @db.Char(36)
+  scarId                    String             @db.Char(36)
+  revisionNumber            Int
+  status                    ScarResponseStatus @default(DRAFT)
+  submittedByOrganizationId String             @db.Char(36)
+  submittedById             String?            @db.Char(36)
+  submittedByName           String?            @db.VarChar(160)
+  submittedAt               DateTime?          @db.DateTime(3)
+  d1Team                    String?            @db.Text
+  d2Problem                 String?            @db.Text
+  d3Containment             String?            @db.Text
+  d4RootCause               String?            @db.Text
+  d4EscapePoint             String?            @db.Text
+  d5CorrectiveActions       String?            @db.Text
+  d6Implementation          String?            @db.Text
+  d6ImplementationDate      DateTime?          @db.Date
+  d7Prevention              String?            @db.Text
+  d8Closure                 String?            @db.Text
+  reviewComment             String?            @db.Text
+  reviewedById              String?            @db.Char(36)
+  reviewedAt                DateTime?          @db.DateTime(3)
+  createdAt                 DateTime           @default(now()) @db.DateTime(3)
+  updatedAt                 DateTime           @updatedAt @db.DateTime(3)
+
+  scar                    CorrectiveAction @relation(fields: [scarId], references: [id])
+  submittedByOrganization Organization     @relation(fields: [submittedByOrganizationId], references: [id])
+
+  @@unique([scarId, revisionNumber])
+  @@map("corrective_action_responses")
+}

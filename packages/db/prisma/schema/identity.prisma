@@ -1,0 +1,283 @@
+// Organizations, users, memberships, roles, permissions, invitations, sessions.
+
+enum OrganizationType {
+  INTERNAL
+  SUPPLIER
+}
+
+enum UserType {
+  INTERNAL
+  EXTERNAL
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum RoleScope {
+  INTERNAL
+  EXTERNAL
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum MfaFactorType {
+  TOTP
+  WEBAUTHN
+}
+
+/// Security boundary. Exactly one INTERNAL organization (the company); each supplier has one SUPPLIER organization.
+model Organization {
+  id         String           @id @default(uuid(7)) @db.Char(36)
+  type       OrganizationType
+  name       String           @db.VarChar(200)
+  code       String           @unique @db.VarChar(40)
+  isActive   Boolean          @default(true)
+  createdAt  DateTime         @default(now()) @db.DateTime(3)
+  updatedAt  DateTime         @updatedAt @db.DateTime(3)
+  archivedAt DateTime?        @db.DateTime(3)
+
+  supplier     Supplier?
+  memberships  OrganizationMembership[]
+  invitations  Invitation[]
+  documentsOwned DocumentRecord[]       @relation("DocumentOwnerOrganization")
+  documentShares DocumentShare[]
+  files        FileObject[]
+  tasks        Task[]                   @relation("TaskAssigneeOrganization")
+  changeRequestsSubmitted ChangeRequest[] @relation("ChangeRequestSubmitterOrg")
+  scarResponses CorrectiveActionResponse[]
+  acknowledgments DocumentAcknowledgment[]
+
+  @@index([type])
+  @@map("organizations")
+}
+
+model User {
+  id                 String     @id @default(uuid(7)) @db.Char(36)
+  email              String     @unique @db.VarChar(254)
+  displayName        String     @db.VarChar(160)
+  userType           UserType
+  status             UserStatus @default(ACTIVE)
+  /// Argon2id hash. Null for invited users who have not set a password, or for federated identities.
+  passwordHash       String?    @db.VarChar(255)
+  passwordChangedAt  DateTime?  @db.DateTime(3)
+  timezone           String     @default("UTC") @db.VarChar(64)
+  jobTitle           String?    @db.VarChar(120)
+  department         String?    @db.VarChar(120)
+  phone              String?    @db.VarChar(40)
+  failedLoginCount   Int        @default(0)
+  lockedUntil        DateTime?  @db.DateTime(3)
+  lastLoginAt        DateTime?  @db.DateTime(3)
+  mfaRequired        Boolean    @default(false)
+  disabledAt         DateTime?  @db.DateTime(3)
+  disabledReason     String?    @db.VarChar(500)
+  createdAt          DateTime   @default(now()) @db.DateTime(3)
+  updatedAt          DateTime   @updatedAt @db.DateTime(3)
+
+  memberships            OrganizationMembership[]
+  sessions               AuthSession[]
+  passwordResetTokens    PasswordResetToken[]
+  identities             UserIdentity[]
+  mfaFactors             UserMfaFactor[]
+  invitationsSent        Invitation[]             @relation("InvitationInviter")
+  invitationAccepted     Invitation[]             @relation("InvitationAcceptedUser")
+  notifications          Notification[]
+  notificationPreferences NotificationPreference[]
+  savedViews             SavedView[]
+  tasksAssigned          Task[]                   @relation("TaskAssignee")
+  tasksCreated           Task[]                   @relation("TaskCreator")
+  approvalAssignments    ApprovalAssignment[]     @relation("AssignmentAssignee")
+  approvalDecisions      ApprovalAssignment[]     @relation("AssignmentDecider")
+  comments               Comment[]
+  projectMemberships     SourcingProjectMember[]
+  projectsOwned          SourcingProject[]        @relation("ProjectOwner")
+  ncrsOwned              Nonconformance[]         @relation("NcrOwner")
+
+  @@index([status])
+  @@map("users")
+}
+
+/// External identity link (future SSO / OIDC / Microsoft Entra ID). Kept separate from internal keys.
+model UserIdentity {
+  id         String   @id @default(uuid(7)) @db.Char(36)
+  userId     String   @db.Char(36)
+  provider   String   @db.VarChar(60)
+  subject    String   @db.VarChar(255)
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+  lastUsedAt DateTime? @db.DateTime(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+/// MFA factor registry (Phase 2). Secrets must be encrypted at rest by the application before storage.
+model UserMfaFactor {
+  id              String        @id @default(uuid(7)) @db.Char(36)
+  userId          String        @db.Char(36)
+  type            MfaFactorType
+  label           String        @db.VarChar(120)
+  encryptedSecret String?       @db.Text
+  verifiedAt      DateTime?     @db.DateTime(3)
+  lastUsedAt      DateTime?     @db.DateTime(3)
+  createdAt       DateTime      @default(now()) @db.DateTime(3)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_mfa_factors")
+}
+
+model OrganizationMembership {
+  id             String           @id @default(uuid(7)) @db.Char(36)
+  userId         String           @db.Char(36)
+  organizationId String           @db.Char(36)
+  status         MembershipStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now()) @db.DateTime(3)
+  updatedAt      DateTime         @updatedAt @db.DateTime(3)
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  roles        MembershipRole[]
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("organization_memberships")
+}
+
+model Role {
+  id          String    @id @default(uuid(7)) @db.Char(36)
+  key         String    @unique @db.VarChar(60)
+  name        String    @db.VarChar(120)
+  description String?   @db.VarChar(500)
+  scope       RoleScope
+  /// System roles cannot be deleted (their permissions remain configurable).
+  isSystem    Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @db.DateTime(3)
+
+  permissions RolePermission[]
+  memberships MembershipRole[]
+  invitations InvitationRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String    @id @default(uuid(7)) @db.Char(36)
+  key         String    @unique @db.VarChar(80)
+  description String    @db.VarChar(300)
+  /// Whether this permission may ever be granted to an external (supplier) role.
+  externalAllowed Boolean @default(false)
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @db.Char(36)
+  permissionId String     @db.Char(36)
+  grantedAt    DateTime   @default(now()) @db.DateTime(3)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model MembershipRole {
+  membershipId String                 @db.Char(36)
+  roleId       String                 @db.Char(36)
+  grantedAt    DateTime               @default(now()) @db.DateTime(3)
+  grantedById  String?                @db.Char(36)
+  membership   OrganizationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  role         Role                   @relation(fields: [roleId], references: [id])
+
+  @@id([membershipId, roleId])
+  @@index([roleId])
+  @@map("membership_roles")
+}
+
+model Invitation {
+  id             String           @id @default(uuid(7)) @db.Char(36)
+  email          String           @db.VarChar(254)
+  displayName    String?          @db.VarChar(160)
+  organizationId String           @db.Char(36)
+  tokenHash      String           @unique @db.Char(64)
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime         @db.DateTime(3)
+  invitedById    String           @db.Char(36)
+  acceptedAt     DateTime?        @db.DateTime(3)
+  acceptedUserId String?          @db.Char(36)
+  createdAt      DateTime         @default(now()) @db.DateTime(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  invitedBy    User             @relation("InvitationInviter", fields: [invitedById], references: [id])
+  acceptedUser User?            @relation("InvitationAcceptedUser", fields: [acceptedUserId], references: [id])
+  roles        InvitationRole[]
+
+  @@index([email])
+  @@index([organizationId, status])
+  @@map("invitations")
+}
+
+model InvitationRole {
+  invitationId String     @db.Char(36)
+  roleId       String     @db.Char(36)
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id])
+
+  @@id([invitationId, roleId])
+  @@index([roleId])
+  @@map("invitation_roles")
+}
+
+/// Server-side session. Only a SHA-256 hash of the opaque session token is stored.
+model AuthSession {
+  id          String    @id @default(uuid(7)) @db.Char(36)
+  userId      String    @db.Char(36)
+  tokenHash   String    @unique @db.Char(64)
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+  lastSeenAt  DateTime  @default(now()) @db.DateTime(3)
+  idleExpiresAt DateTime @db.DateTime(3)
+  absoluteExpiresAt DateTime @db.DateTime(3)
+  revokedAt   DateTime? @db.DateTime(3)
+  revokedReason String? @db.VarChar(120)
+  ipAddress   String?   @db.VarChar(64)
+  userAgent   String?   @db.VarChar(400)
+  mfaVerifiedAt DateTime? @db.DateTime(3)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("auth_sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid(7)) @db.Char(36)
+  userId    String    @db.Char(36)
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime  @db.DateTime(3)
+  usedAt    DateTime? @db.DateTime(3)
+  createdAt DateTime  @default(now()) @db.DateTime(3)
+  requestIp String?   @db.VarChar(64)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}

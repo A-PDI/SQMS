@@ -1,0 +1,467 @@
+// Product master, supplier parts, cross-references, supplier-product-site relationships,
+// configurations, revisions, engineering baselines, delta requirements, critical characteristics, approvals.
+
+enum PartCriticality {
+  LOW
+  MEDIUM
+  HIGH
+  SAFETY_CRITICAL
+}
+
+enum PartStatus {
+  DEVELOPMENT
+  ACTIVE
+  ON_HOLD
+  OBSOLETE
+}
+
+enum DesignOwnership {
+  COMPANY
+  SUPPLIER
+  SHARED
+}
+
+enum SupplierPartStatus {
+  ACTIVE
+  INACTIVE
+  OBSOLETE
+}
+
+enum CrossReferenceType {
+  EQUIVALENT
+  CUSTOM_CONFIGURATION
+  ALTERNATE
+}
+
+enum SupplierProductStatus {
+  PROPOSED
+  IN_QUALIFICATION
+  APPROVED
+  CONDITIONALLY_APPROVED
+  SUSPENDED
+  DISQUALIFIED
+  INACTIVE
+}
+
+enum ConfigurationType {
+  CUSTOMER_DESIGN
+  SUPPLIER_STANDARD
+  SUPPLIER_MODIFIED
+}
+
+enum ConfigRevisionStatus {
+  DRAFT
+  PROPOSED
+  IN_REVIEW
+  APPROVED
+  SUPERSEDED
+  REJECTED
+  WITHDRAWN
+}
+
+enum BaselineType {
+  CUSTOMER_CONTROLLED_DESIGN
+  SUPPLIER_PRODUCT_BASELINE
+  SUPPLIER_BASELINE_WITH_DELTA
+  PRELIMINARY_REVERSE_ENGINEERED
+}
+
+enum BaselineStatus {
+  DRAFT
+  IN_REVIEW
+  ACCEPTED
+}
+
+enum RequirementCategory {
+  DIMENSIONAL
+  MATERIAL
+  COATING
+  HEAT_TREATMENT
+  PERFORMANCE
+  PROCESS
+  INSPECTION
+  PACKAGING
+  LABELING
+  OTHER
+}
+
+enum AcknowledgmentStatus {
+  PENDING
+  ACKNOWLEDGED
+  DECLINED
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  WAIVED
+}
+
+enum CharacteristicClass {
+  CRITICAL
+  SIGNIFICANT
+  MAJOR
+  MINOR
+}
+
+enum CharacteristicSource {
+  BASELINE
+  DELTA
+}
+
+enum ProductApprovalStatus {
+  ACTIVE
+  SUPERSEDED
+  SUSPENDED
+  REVOKED
+}
+
+model ProductCategory {
+  id          String    @id @default(uuid(7)) @db.Char(36)
+  code        String    @unique @db.VarChar(40)
+  name        String    @db.VarChar(160)
+  description String?   @db.VarChar(500)
+  parentId    String?   @db.Char(36)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+
+  parent    ProductCategory?          @relation("CategoryTree", fields: [parentId], references: [id])
+  children  ProductCategory[]         @relation("CategoryTree")
+  parts     InternalPart[]
+  suppliers SupplierProductCategory[]
+
+  @@map("product_categories")
+}
+
+/// Internal product master (our part number).
+model InternalPart {
+  id               String          @id @default(uuid(7)) @db.Char(36)
+  partNumber       String          @unique @db.VarChar(60)
+  description      String          @db.VarChar(500)
+  categoryId       String?         @db.Char(36)
+  application      String?         @db.Text
+  unitOfMeasure    String          @default("EA") @db.VarChar(12)
+  criticality      PartCriticality @default(MEDIUM)
+  status           PartStatus      @default(DEVELOPMENT)
+  designOwnership  DesignOwnership @default(SUPPLIER)
+  engineeringRevision String?      @db.VarChar(20)
+  notes            String?         @db.Text
+  createdById      String?         @db.Char(36)
+  createdAt        DateTime        @default(now()) @db.DateTime(3)
+  updatedAt        DateTime        @updatedAt @db.DateTime(3)
+  archivedAt       DateTime?       @db.DateTime(3)
+  version          Int             @default(0)
+
+  category          ProductCategory?    @relation(fields: [categoryId], references: [id])
+  oemReferences     OemCrossReference[]
+  crossReferences   PartCrossReference[]
+  supplierProducts  SupplierProduct[]
+  sourcingProjects  SourcingProject[]
+  riskAssessments   RiskAssessment[]
+  changeRequests    ChangeRequest[]
+  nonconformances   Nonconformance[]
+  productApprovals  ProductApproval[]
+
+  @@index([status])
+  @@index([categoryId])
+  @@fulltext([partNumber, description])
+  @@map("internal_parts")
+}
+
+model OemCrossReference {
+  id             String       @id @default(uuid(7)) @db.Char(36)
+  internalPartId String       @db.Char(36)
+  oemName        String       @db.VarChar(120)
+  oemPartNumber  String       @db.VarChar(80)
+  notes          String?      @db.VarChar(500)
+  createdAt      DateTime     @default(now()) @db.DateTime(3)
+  internalPart   InternalPart @relation(fields: [internalPartId], references: [id], onDelete: Cascade)
+
+  @@unique([internalPartId, oemName, oemPartNumber])
+  @@index([oemPartNumber])
+  @@map("oem_cross_references")
+}
+
+/// Supplier's own part number. A custom configuration may carry a distinct supplier part number.
+model SupplierPart {
+  id                 String             @id @default(uuid(7)) @db.Char(36)
+  supplierId         String             @db.Char(36)
+  supplierPartNumber String             @db.VarChar(80)
+  description        String             @db.VarChar(500)
+  supplierRevision   String?            @db.VarChar(20)
+  designOwnership    DesignOwnership    @default(SUPPLIER)
+  isCustom           Boolean            @default(false)
+  status             SupplierPartStatus @default(ACTIVE)
+  notes              String?            @db.Text
+  createdAt          DateTime           @default(now()) @db.DateTime(3)
+  updatedAt          DateTime           @updatedAt @db.DateTime(3)
+  archivedAt         DateTime?          @db.DateTime(3)
+
+  supplier         Supplier             @relation(fields: [supplierId], references: [id])
+  crossReferences  PartCrossReference[]
+  supplierProducts SupplierProduct[]
+  sourcingProjects SourcingProject[]
+  changeRequests   ChangeRequest[]
+  nonconformances  Nonconformance[]
+
+  @@unique([supplierId, supplierPartNumber])
+  @@index([supplierPartNumber])
+  @@map("supplier_parts")
+}
+
+model PartCrossReference {
+  id             String             @id @default(uuid(7)) @db.Char(36)
+  internalPartId String             @db.Char(36)
+  supplierPartId String             @db.Char(36)
+  type           CrossReferenceType @default(EQUIVALENT)
+  notes          String?            @db.VarChar(500)
+  createdAt      DateTime           @default(now()) @db.DateTime(3)
+  createdById    String?            @db.Char(36)
+
+  internalPart InternalPart @relation(fields: [internalPartId], references: [id])
+  supplierPart SupplierPart @relation(fields: [supplierPartId], references: [id])
+
+  @@unique([internalPartId, supplierPartId])
+  @@index([supplierPartId])
+  @@map("part_cross_references")
+}
+
+/// Supplier-product-site relationship (approved source candidate). Approval is tracked per configuration revision.
+model SupplierProduct {
+  id             String                @id @default(uuid(7)) @db.Char(36)
+  internalPartId String                @db.Char(36)
+  supplierId     String                @db.Char(36)
+  supplierPartId String                @db.Char(36)
+  siteId         String                @db.Char(36)
+  status         SupplierProductStatus @default(PROPOSED)
+  statusReason   String?               @db.VarChar(1000)
+  isPreferred    Boolean               @default(false)
+  originProjectId String?              @db.Char(36)
+  approvedAt     DateTime?             @db.DateTime(3)
+  createdAt      DateTime              @default(now()) @db.DateTime(3)
+  updatedAt      DateTime              @updatedAt @db.DateTime(3)
+  archivedAt     DateTime?             @db.DateTime(3)
+  version        Int                   @default(0)
+
+  internalPart     InternalPart           @relation(fields: [internalPartId], references: [id])
+  supplier         Supplier               @relation(fields: [supplierId], references: [id])
+  supplierPart     SupplierPart           @relation(fields: [supplierPartId], references: [id])
+  site             SupplierSite           @relation(fields: [siteId], references: [id])
+  originProject    SourcingProject?       @relation("ProjectOriginOfSupplierProduct", fields: [originProjectId], references: [id])
+  configurations   ProductConfiguration[]
+  qualifications   ProductQualification[]
+  changeRequests   ChangeRequest[]
+  deviations       Deviation[]
+  nonconformances  Nonconformance[]
+  productApprovals ProductApproval[]
+  sourcingProjects SourcingProject[]      @relation("ProjectSupplierProduct")
+
+  @@unique([internalPartId, supplierPartId, siteId])
+  @@index([supplierId, status])
+  @@index([siteId])
+  @@map("supplier_products")
+}
+
+model ProductConfiguration {
+  id                String            @id @default(uuid(7)) @db.Char(36)
+  configCode        String            @unique @db.VarChar(40)
+  supplierProductId String            @db.Char(36)
+  /// Denormalized for efficient, enforceable supplier isolation.
+  supplierId        String            @db.Char(36)
+  name              String            @db.VarChar(200)
+  configurationType ConfigurationType
+  /// Path C: the original supplier configuration this custom configuration is based on.
+  baseConfigurationId String?         @db.Char(36)
+  customPartNumber  String?           @db.VarChar(80)
+  description       String?           @db.Text
+  isActive          Boolean           @default(true)
+  /// The revision currently authorized for production/shipment, if any.
+  currentApprovedRevisionId String?   @unique @db.Char(36)
+  createdById       String?           @db.Char(36)
+  createdAt         DateTime          @default(now()) @db.DateTime(3)
+  updatedAt         DateTime          @updatedAt @db.DateTime(3)
+
+  supplierProduct   SupplierProduct         @relation(fields: [supplierProductId], references: [id])
+  supplier          Supplier                @relation(fields: [supplierId], references: [id])
+  baseConfiguration ProductConfiguration?   @relation("ConfigurationBase", fields: [baseConfigurationId], references: [id])
+  derivedConfigurations ProductConfiguration[] @relation("ConfigurationBase")
+  currentApprovedRevision ConfigurationRevision? @relation("ConfigurationCurrentApproved", fields: [currentApprovedRevisionId], references: [id])
+  revisions         ConfigurationRevision[] @relation("ConfigurationRevisions")
+  sourcingProjects  SourcingProject[]
+
+  @@index([supplierProductId])
+  @@index([supplierId])
+  @@map("product_configurations")
+}
+
+model ConfigurationRevision {
+  id               String               @id @default(uuid(7)) @db.Char(36)
+  configurationId  String               @db.Char(36)
+  revisionNumber   Int
+  revisionLabel    String               @db.VarChar(10)
+  status           ConfigRevisionStatus @default(DRAFT)
+  description      String?              @db.Text
+  changeSummary    String?              @db.Text
+  supplierProductRevision String?       @db.VarChar(40)
+  derivedFromRevisionId String?         @db.Char(36)
+  approvedAt       DateTime?            @db.DateTime(3)
+  approvedById     String?              @db.Char(36)
+  supersededAt     DateTime?            @db.DateTime(3)
+  supersededByRevisionId String?        @unique @db.Char(36)
+  createdById      String?              @db.Char(36)
+  createdAt        DateTime             @default(now()) @db.DateTime(3)
+  updatedAt        DateTime             @updatedAt @db.DateTime(3)
+  /// Optimistic concurrency token. Every controlled mutation must increment it.
+  version          Int                  @default(0)
+
+  configuration    ProductConfiguration    @relation("ConfigurationRevisions", fields: [configurationId], references: [id])
+  currentFor       ProductConfiguration?   @relation("ConfigurationCurrentApproved")
+  derivedFrom      ConfigurationRevision?  @relation("RevisionDerivation", fields: [derivedFromRevisionId], references: [id])
+  derivedRevisions ConfigurationRevision[] @relation("RevisionDerivation")
+  supersededBy     ConfigurationRevision?  @relation("RevisionSupersession", fields: [supersededByRevisionId], references: [id])
+  supersedes       ConfigurationRevision?  @relation("RevisionSupersession")
+  baseline         EngineeringBaseline?
+  requirements     CustomerRequirement[]
+  characteristics  CriticalCharacteristic[]
+  qualifications   ProductQualification[]
+  changeRequestsCurrent  ChangeRequest[]   @relation("ChangeRequestCurrentRevision")
+  changeRequestsProposed ChangeRequest[]   @relation("ChangeRequestProposedRevision")
+  deviations       Deviation[]
+  nonconformances  Nonconformance[]
+  productApproval  ProductApproval?
+  inspectionRequirements InspectionRequirement[]
+
+  @@unique([configurationId, revisionNumber])
+  @@index([status])
+  @@map("configuration_revisions")
+}
+
+/// Product definition for a configuration revision: a controlled company design, a supplier product baseline,
+/// a supplier baseline plus customer delta (Path C), or a preliminary reverse-engineered definition.
+model EngineeringBaseline {
+  id                   String          @id @default(uuid(7)) @db.Char(36)
+  configurationRevisionId String       @unique @db.Char(36)
+  baselineType         BaselineType
+  designOwnership      DesignOwnership
+  status               BaselineStatus  @default(DRAFT)
+  drawingNumber        String?         @db.VarChar(80)
+  drawingRevision      String?         @db.VarChar(20)
+  specificationNumber  String?         @db.VarChar(80)
+  specificationRevision String?        @db.VarChar(20)
+  material             String?         @db.VarChar(300)
+  materialSpecification String?        @db.VarChar(300)
+  coating              String?         @db.VarChar(300)
+  coatingSpecification String?         @db.VarChar(300)
+  heatTreatment        String?         @db.VarChar(300)
+  surfaceFinish        String?         @db.VarChar(300)
+  generalTolerances    String?         @db.VarChar(500)
+  keyDimensions        String?         @db.Text
+  performanceRequirements String?      @db.Text
+  operatingRequirements String?        @db.Text
+  guaranteedCharacteristics String?    @db.Text
+  reverseEngineeringSource String?     @db.Text
+  notes                String?         @db.Text
+  additionalData       Json?
+  acceptedById         String?         @db.Char(36)
+  acceptedAt           DateTime?       @db.DateTime(3)
+  createdAt            DateTime        @default(now()) @db.DateTime(3)
+  updatedAt            DateTime        @updatedAt @db.DateTime(3)
+
+  configurationRevision ConfigurationRevision @relation(fields: [configurationRevisionId], references: [id])
+
+  @@map("engineering_baselines")
+}
+
+/// Customer-specific requirement / delta specification line (baseline-plus-delta).
+model CustomerRequirement {
+  id                      String               @id @default(uuid(7)) @db.Char(36)
+  configurationRevisionId String               @db.Char(36)
+  code                    String               @db.VarChar(20)
+  category                RequirementCategory
+  title                   String               @db.VarChar(250)
+  baselineValue           String?              @db.Text
+  requiredValue           String               @db.Text
+  acceptanceCriteria      String               @db.Text
+  rationale               String?              @db.Text
+  isModification          Boolean              @default(true)
+  ackStatus               AcknowledgmentStatus @default(PENDING)
+  ackAt                   DateTime?            @db.DateTime(3)
+  ackByName               String?              @db.VarChar(160)
+  ackByUserId             String?              @db.Char(36)
+  ackNote                 String?              @db.Text
+  verificationStatus      VerificationStatus   @default(PENDING)
+  verificationNote        String?              @db.Text
+  verifiedById            String?              @db.Char(36)
+  verifiedAt              DateTime?            @db.DateTime(3)
+  sortOrder               Int                  @default(0)
+  createdAt               DateTime             @default(now()) @db.DateTime(3)
+  updatedAt               DateTime             @updatedAt @db.DateTime(3)
+
+  configurationRevision ConfigurationRevision    @relation(fields: [configurationRevisionId], references: [id])
+  characteristics       CriticalCharacteristic[]
+
+  @@unique([configurationRevisionId, code])
+  @@map("customer_requirements")
+}
+
+model CriticalCharacteristic {
+  id                      String               @id @default(uuid(7)) @db.Char(36)
+  configurationRevisionId String               @db.Char(36)
+  charNumber              String               @db.VarChar(20)
+  name                    String               @db.VarChar(250)
+  classification          CharacteristicClass
+  source                  CharacteristicSource @default(BASELINE)
+  customerRequirementId   String?              @db.Char(36)
+  nominal                 Decimal?             @db.Decimal(18, 6)
+  tolerancePlus           Decimal?             @db.Decimal(18, 6)
+  toleranceMinus          Decimal?             @db.Decimal(18, 6)
+  unit                    String?              @db.VarChar(20)
+  specification           String?              @db.VarChar(500)
+  measurementMethod       String?              @db.VarChar(300)
+  inspectionFrequency     String?              @db.VarChar(200)
+  acceptanceCriteria      String?              @db.Text
+  sortOrder               Int                  @default(0)
+  createdAt               DateTime             @default(now()) @db.DateTime(3)
+  updatedAt               DateTime             @updatedAt @db.DateTime(3)
+
+  configurationRevision ConfigurationRevision  @relation(fields: [configurationRevisionId], references: [id])
+  customerRequirement   CustomerRequirement?   @relation(fields: [customerRequirementId], references: [id])
+  inspectionResults     InspectionResult[]
+  inspectionRequirements InspectionRequirement[]
+  nonconformances       Nonconformance[]
+
+  @@unique([configurationRevisionId, charNumber])
+  @@map("critical_characteristics")
+}
+
+/// The explicit approved supplier-product-configuration-site record used by purchasing.
+model ProductApproval {
+  id                      String                @id @default(uuid(7)) @db.Char(36)
+  number                  String                @unique @db.VarChar(40)
+  internalPartId          String                @db.Char(36)
+  supplierProductId       String                @db.Char(36)
+  supplierId              String                @db.Char(36)
+  siteId                  String                @db.Char(36)
+  configurationRevisionId String                @unique @db.Char(36)
+  qualificationId         String                @unique @db.Char(36)
+  approvalPackageId       String                @unique @db.Char(36)
+  status                  ProductApprovalStatus @default(ACTIVE)
+  restrictions            String?               @db.Text
+  approvedById            String                @db.Char(36)
+  approvedAt              DateTime              @db.DateTime(3)
+  effectiveFrom           DateTime              @db.DateTime(3)
+  supersededAt            DateTime?             @db.DateTime(3)
+  supersededByChangeRequestId String?           @db.Char(36)
+  createdAt               DateTime              @default(now()) @db.DateTime(3)
+
+  internalPart          InternalPart          @relation(fields: [internalPartId], references: [id])
+  supplierProduct       SupplierProduct       @relation(fields: [supplierProductId], references: [id])
+  configurationRevision ConfigurationRevision @relation(fields: [configurationRevisionId], references: [id])
+  qualification         ProductQualification  @relation(fields: [qualificationId], references: [id])
+  approvalPackage       ApprovalPackage       @relation(fields: [approvalPackageId], references: [id])
+
+  @@index([supplierId, status])
+  @@index([internalPartId, status])
+  @@map("product_approvals")
+}
