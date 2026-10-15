@@ -25,6 +25,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const { status, body } = this.map(exception, correlationId);
     if (status >= 500) {
       this.logger.error(`[${correlationId}] ${exception instanceof Error ? exception.stack ?? exception.message : String(exception)}`);
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      // Database-level rejections that map to 4xx can still indicate missing reference data; keep the detail server-side.
+      this.logger.warn(`[${correlationId}] ${exception.code} ${exception.message.split("\n").slice(-3).join(" ")} ${exception.stack?.split("\n").slice(1, 6).join(" | ") ?? ""}`);
     }
     if (res.headersSent) {
       res.end();

@@ -176,13 +176,13 @@ export class DocumentsService implements OnModuleInit, WorkflowSubjectHandler {
 
   // ------------------------------------------------------------------ create & edit drafts
 
-  private async validateLinks(actor: Actor, links: DocumentLinkDto[]) {
-    for (const l of links) await this.entities.assertReadable(actor, l.entityType, l.entityId);
+  private async validateLinks(actor: Actor, links: DocumentLinkDto[], tx?: Tx) {
+    for (const l of links) await this.entities.assertReadable(actor, l.entityType, l.entityId, tx);
   }
 
   async create(actor: Actor, dto: CreateDocumentDto, txIn?: Tx) {
     const scope = AccessScope.of(actor);
-    if (dto.links?.length) await this.validateLinks(actor, dto.links);
+    if (dto.links?.length) await this.validateLinks(actor, dto.links, txIn);
     const run = async (tx: Tx) => {
       const type = await tx.documentType.findUnique({ where: { id: dto.documentTypeId } });
       if (!type || type.status !== "ACTIVE") throw new BusinessRuleError("The document type is not active");

@@ -62,3 +62,10 @@ describe("native form validation", () => {
     expect(canonicalJson({ b: 1, a: [{ d: 2, c: 3 }] })).toBe(canonicalJson({ a: [{ c: 3, d: 2 }], b: 1 }));
   });
 });
+
+describe("canonicalJson dates", () => {
+  it("serializes Date values as ISO strings (same as after a JSON round-trip)", () => {
+    const d = new Date("2026-10-15T01:02:03.000Z");
+    expect(canonicalJson({ at: d })).toBe(canonicalJson(JSON.parse(JSON.stringify({ at: d }))));
+  });
+});
