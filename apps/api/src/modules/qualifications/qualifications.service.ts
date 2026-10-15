@@ -8,7 +8,7 @@ import { ActivityService } from "../../common/audit/activity.service";
 import { AuditService, diffControlled } from "../../common/audit/audit.service";
 import { RequestContext } from "../../common/context/request-context";
 import { DbService, type AfterCommit, type Tx } from "../../common/db/db.service";
-import { ApprovalGateError, BusinessRuleError, ConflictError, InvalidTransitionError, NotFoundError, StaleVersionError, type GateCheck } from "../../common/errors/app-errors";
+import { ApprovalGateError, BusinessRuleError, ConflictError, ForbiddenError, InvalidTransitionError, NotFoundError, StaleVersionError, type GateCheck } from "../../common/errors/app-errors";
 import { toDate } from "../../common/http/dto-helpers";
 import { pageArgs, sortArg, trimQ, type Page } from "../../common/http/pagination";
 import { NotificationService } from "../../common/services/notification.service";
@@ -233,7 +233,7 @@ export class QualificationsService implements OnModuleInit, WorkflowSubjectHandl
       await this.documentInScope(tx, dto.documentId, q.supplierId);
       const after = await tx.testRecord.update({
         where: { id: testId },
-        data: { outcome: dto.outcome, resultSummary: dto.resultSummary, testedAt: toDate(dto.testedAt) ?? new Date(), laboratory: dto.laboratory ?? null, documentId: dto.documentId ?? null, status: "SUBMITTED", reviewedAt: null, reviewedById: null, reviewComment: null, version: { increment: 1 } },
+        data: { outcome: dto.outcome, resultSummary: dto.resultSummary, testedAt: toDate(dto.testedAt) ?? new Date(), laboratory: dto.laboratory ?? null, documentId: dto.documentId ?? null, resultRecordedById: actor.userId, status: "SUBMITTED", reviewedAt: null, reviewedById: null, reviewComment: null, version: { increment: 1 } },
       });
       await this.audit.record({ eventType: "qualification.test_result_recorded", entityType: "PRODUCT_QUALIFICATION", entityId: q.id, entityLabel: q.number, metadata: { testId, outcome: dto.outcome, documentId: dto.documentId } }, tx);
       return after;
@@ -247,6 +247,7 @@ export class QualificationsService implements OnModuleInit, WorkflowSubjectHandl
       const q = await this.lockQualification(tx, t.qualificationId);
       this.assertOpen(q);
       if (t.status !== "SUBMITTED") throw new InvalidTransitionError("Test result", t.status, "reviewed");
+      if (t.resultRecordedById === actor.userId) throw new ForbiddenError("You recorded this result and cannot review it");
       if (decision === "ACCEPTED" && t.outcome === "FAIL") throw new BusinessRuleError("A failed test cannot be accepted; record a new result or a deviation");
       const after = await tx.testRecord.update({ where: { id: testId }, data: { status: decision, reviewedById: actor.userId, reviewedAt: new Date(), reviewComment: comment, version: { increment: 1 } } });
       await this.audit.record({ eventType: `qualification.test_${decision.toLowerCase()}`, entityType: "PRODUCT_QUALIFICATION", entityId: q.id, entityLabel: q.number, reason: comment, metadata: { testId, outcome: t.outcome } }, tx);
@@ -280,6 +281,7 @@ export class QualificationsService implements OnModuleInit, WorkflowSubjectHandl
       const q = await this.lockQualification(tx, fai.qualificationId);
       this.assertOpen(q);
       if (fai.status !== "SUBMITTED") throw new InvalidTransitionError("FAI", fai.status, "reviewed");
+      if (fai.createdById === actor.userId) throw new ForbiddenError("You recorded this inspection and cannot review it");
       if (decision === "ACCEPTED" && fai.outcome === "FAIL") throw new BusinessRuleError("A failed FAI cannot be accepted");
       const after = await tx.firstArticleInspection.update({ where: { id: faiId }, data: { status: decision, reviewedById: actor.userId, reviewedAt: new Date(), reviewComment: comment, version: { increment: 1 } } });
       await this.audit.record({ eventType: `qualification.fai_${decision.toLowerCase()}`, entityType: "PRODUCT_QUALIFICATION", entityId: q.id, entityLabel: q.number, reason: comment, metadata: { faiId, number: fai.number } }, tx);

@@ -280,6 +280,8 @@ model TestRecord {
   laboratory         String?            @db.VarChar(200)
   testedAt           DateTime?          @db.DateTime(3)
   documentId         String?            @db.Char(36)
+  /// Who recorded the latest result (cannot also review it).
+  resultRecordedById String?            @db.Char(36)
   reviewedById       String?            @db.Char(36)
   reviewedAt         DateTime?          @db.DateTime(3)
   reviewComment      String?            @db.Text

@@ -8,9 +8,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/main.js",
-    "dev": "tsc -p tsconfig.build.json && (tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --watch dist/main.js)",
-    "seed:demo": "node dist/seed-demo.js",
-    "openapi:export": "node dist/openapi-export.js",
+    "dev": "tsc -p tsconfig.build.json && (tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --env-file-if-exists=../../.env --watch dist/main.js)",
+    "seed:demo": "node --env-file-if-exists=../../.env dist/seed-demo.js",
+    "openapi:export": "node --env-file-if-exists=../../.env dist/openapi-export.js",
     "test": "jest --runInBand"
   },
   "dependencies": {

@@ -6,7 +6,7 @@ const repoRoot = path.resolve(process.cwd(), "../..");
 const isDev = process.env.NODE_ENV !== "production";
 // Development only: forward /api/* to the API so the browser talks to a single origin (session cookie + CSRF).
 // In deployed environments the gateway routes /api/* to the API service directly.
-const apiProxy = process.env.API_PROXY_URL;
+const apiProxy = process.env.API_PROXY_URL ?? (isDev ? "http://127.0.0.1:4000" : undefined);
 
 const csp = [
   "default-src 'self'",

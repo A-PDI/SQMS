@@ -12,7 +12,7 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "migrate:status": "prisma migrate status",
-    "seed": "node dist/seed/run.js reference",
+    "seed": "node --env-file-if-exists=../../.env dist/seed/run.js reference",
     "test": "echo \"@sqms/db: covered by API integration tests\""
   },
   "dependencies": {

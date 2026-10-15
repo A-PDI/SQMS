@@ -211,6 +211,15 @@ describe("Sourcing projects, checklists and product approval", () => {
     expect((await team.quality.session.post(`/qualifications/${q.id}/first-articles`, { characteristicsInspected: 10, nonconformingCount: 1, outcome: "PASS" })).status).toBe(422);
     const failed = expectStatus(await team.quality.session.post(`/qualifications/${q.id}/first-articles`, { characteristicsInspected: 10, nonconformingCount: 2, outcome: "FAIL" }), 201).body;
     expect((await team.quality2.session.post(`/qualifications/first-articles/${failed.id}/review`, { decision: "ACCEPTED", comment: "Try to accept" })).status).toBe(422);
+
+    // Four-eyes: whoever recorded evidence cannot review it.
+    const fai = expectStatus(await team.quality.session.post(`/qualifications/${q.id}/first-articles`, { characteristicsInspected: 12, nonconformingCount: 0, outcome: "PASS" }), 201).body;
+    expect((await team.quality.session.post(`/qualifications/first-articles/${fai.id}/review`, { decision: "ACCEPTED", comment: "Own FAI" })).status).toBe(403);
+    expectStatus(await team.quality2.session.post(`/qualifications/first-articles/${fai.id}/review`, { decision: "ACCEPTED", comment: "Independent review" }), 201);
+    const t = expectStatus(await team.engineer.session.post(`/qualifications/${q.id}/tests`, { testType: "LEAK", name: "Leak test", acceptanceCriteria: "No leakage at 3 bar" }), 201).body;
+    expectStatus(await team.engineer.session.post(`/qualifications/tests/${t.id}/result`, { outcome: "PASS", resultSummary: "No leakage" }), 201);
+    expect((await team.engineer.session.post(`/qualifications/tests/${t.id}/review`, { decision: "ACCEPTED", comment: "Own result" })).status).toBe(403);
+    expectStatus(await team.quality.session.post(`/qualifications/tests/${t.id}/review`, { decision: "ACCEPTED", comment: "Independent review" }), 201);
   });
 
   it("approves a Path C custom configuration once every gate condition is met", async () => {
