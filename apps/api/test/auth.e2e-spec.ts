@@ -44,6 +44,23 @@ describe("Authentication & sessions", () => {
     expectStatus(ok, 201);
   });
 
+  it("signs in as another user from a browser holding a session only with a same-origin request, ending the old session", async () => {
+    const first = await createUser(ctx.prisma, { roles: ["READ_ONLY"] });
+    const second = await createUser(ctx.prisma, { roles: ["SUPPLIER_QUALITY"] });
+    const s = await login(ctx, first.email);
+    // Without an Origin the leftover session's CSRF token would be required (login CSRF protection).
+    const noOrigin = await s.agent.post("/api/v1/auth/login").send({ email: second.email, password: PASSWORD });
+    expect(noOrigin.status).toBe(403);
+    const foreign = await s.agent.post("/api/v1/auth/login").set("origin", "https://evil.example").send({ email: second.email, password: PASSWORD });
+    expect(foreign.status).toBe(403);
+    const switched = await s.agent.post("/api/v1/auth/login").set("origin", "http://localhost:3000").send({ email: second.email, password: PASSWORD });
+    expectStatus(switched, 200);
+    const me = expectStatus(await s.agent.get("/api/v1/auth/me"), 200);
+    expect(me.body.email).toBe(second.email);
+    const old = await ctx.prisma.authSession.findMany({ where: { userId: first.id } });
+    expect(old.every((x) => x.revokedAt !== null)).toBe(true);
+  });
+
   it("uses a generic error, locks the account after repeated failures, and audits failures", async () => {
     const u = await createUser(ctx.prisma, { roles: ["READ_ONLY"] });
     for (let i = 0; i < 5; i++) {

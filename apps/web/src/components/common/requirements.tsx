@@ -276,8 +276,8 @@ function WaiveDialog({ r, onClose, onDone }: { r: Requirement; onClose: () => vo
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent title={`Waive ${r.documentType.code}`} description={r.level === "REQUIRED" ? "This is a mandatory control. The waiver, your identity and the justification are recorded in the audit trail." : "Record why this conditional requirement does not apply to this project."}>
         {s.error ? <ErrorAlert error={s.error} /> : null}
-        <Field label="Justification" required hint="At least 10 characters.">
-          <Textarea rows={4} value={justification} onChange={(e) => setJustification(e.target.value)} autoFocus />
+        <Field label="Justification" required hint="At least 10 characters." htmlFor="waive-justification">
+          <Textarea id="waive-justification" rows={4} value={justification} onChange={(e) => setJustification(e.target.value)} autoFocus />
         </Field>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

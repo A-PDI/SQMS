@@ -5,7 +5,7 @@ import type { AppEnv } from "@sqms/server-core";
 import type { CookieOptions, Request, Response } from "express";
 import { APP_ENV } from "../../infra/tokens";
 import type { Actor } from "../../common/auth/actor";
-import { AudienceScope, CurrentActor, Public } from "../../common/auth/decorators";
+import { AudienceScope, CurrentActor, Public, type AuthenticatedRequest } from "../../common/auth/decorators";
 import { AcceptInvitationDto, ChangePasswordDto, LoginDto, PasswordResetConfirmDto, PasswordResetRequestDto, UpdateProfileDto } from "./auth.dto";
 import { AuthService } from "./auth.service";
 
@@ -27,8 +27,10 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: "Sign in with email and password (sets HttpOnly session cookie and CSRF cookie)" })
-  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async login(@Body() dto: LoginDto, @Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Response) {
     const result = await this.auth.login(dto.email, dto.password, req.ip ?? null, req.header("user-agent") ?? null);
+    // Signing in on a browser that still holds a session ends that session (no parallel identities per browser).
+    if (req.actor) await this.auth.logout(req.actor);
     res.cookie(this.env.SESSION_COOKIE_NAME, result.token, { ...this.cookieBase(), httpOnly: true, sameSite: "lax", expires: result.expiresAt });
     res.cookie(this.env.CSRF_COOKIE_NAME, result.csrfToken, { ...this.cookieBase(), httpOnly: false, sameSite: "strict", expires: result.expiresAt });
     return { csrfToken: result.csrfToken };

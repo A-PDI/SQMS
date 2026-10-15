@@ -22,7 +22,7 @@ export function DialogContent({ className, children, title, description, wide, .
             <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
             {description ? <DialogPrimitive.Description className="mt-0.5 text-xs text-muted-foreground">{description}</DialogPrimitive.Description> : <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>}
           </div>
-          <DialogPrimitive.Close className="rounded p-1 text-muted-foreground hover:bg-muted" aria-label="Close">
+          <DialogPrimitive.Close className="rounded p-1 text-muted-foreground hover:bg-muted" aria-label="Close dialog">
             <X className="size-4" />
           </DialogPrimitive.Close>
         </div>

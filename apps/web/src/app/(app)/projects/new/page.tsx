@@ -611,20 +611,20 @@ function DeltaEditor({ delta, onChange }: { delta: Delta[]; onChange: (d: Delta[
       <p className="text-xs text-muted-foreground">Each modification of the supplier standard product. The supplier must acknowledge every requirement in writing.</p>
       {delta.map((d, i) => (
         <div key={i} className="grid gap-2 rounded-md border p-3 sm:grid-cols-2">
-          <Field label="Category">
-            <Select value={d.category} onChange={(e) => upd(i, { category: e.target.value })} options={toOptions(REQUIREMENT_CATEGORY)} />
+          <Field label="Category" htmlFor={`delta-${i}-category`}>
+            <Select id={`delta-${i}-category`} value={d.category} onChange={(e) => upd(i, { category: e.target.value })} options={toOptions(REQUIREMENT_CATEGORY)} />
           </Field>
-          <Field label="Title" required>
-            <Input value={d.title} onChange={(e) => upd(i, { title: e.target.value })} />
+          <Field label="Title" required htmlFor={`delta-${i}-title`}>
+            <Input id={`delta-${i}-title`} value={d.title} onChange={(e) => upd(i, { title: e.target.value })} />
           </Field>
-          <Field label="Supplier baseline value">
-            <Input value={d.baselineValue} onChange={(e) => upd(i, { baselineValue: e.target.value })} />
+          <Field label="Supplier baseline value" htmlFor={`delta-${i}-baseline`}>
+            <Input id={`delta-${i}-baseline`} value={d.baselineValue} onChange={(e) => upd(i, { baselineValue: e.target.value })} />
           </Field>
-          <Field label="Required value" required>
-            <Input value={d.requiredValue} onChange={(e) => upd(i, { requiredValue: e.target.value })} />
+          <Field label="Required value" required htmlFor={`delta-${i}-required`}>
+            <Input id={`delta-${i}-required`} value={d.requiredValue} onChange={(e) => upd(i, { requiredValue: e.target.value })} />
           </Field>
-          <Field label="Acceptance criteria" required className="sm:col-span-2">
-            <Textarea rows={2} value={d.acceptanceCriteria} onChange={(e) => upd(i, { acceptanceCriteria: e.target.value })} />
+          <Field label="Acceptance criteria" required className="sm:col-span-2" htmlFor={`delta-${i}-criteria`}>
+            <Textarea id={`delta-${i}-criteria`} rows={2} value={d.acceptanceCriteria} onChange={(e) => upd(i, { acceptanceCriteria: e.target.value })} />
           </Field>
           <div className="sm:col-span-2">
             <Button variant="ghost" size="sm" onClick={() => onChange(delta.filter((_, j) => j !== i))}>

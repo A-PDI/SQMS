@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { ErrorAlert } from "@/components/ui/feedback";
@@ -36,6 +36,7 @@ export function ActionDialog({
   onConfirm: (reason: string) => Promise<unknown>;
   disabled?: boolean;
 }) {
+  const reasonId = useId();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,8 +67,8 @@ export function ActionDialog({
           {error ? <ErrorAlert error={error} /> : null}
           {children}
           {reasonLabel && (
-            <Field label={reasonLabel} required={reasonRequired} hint={reasonRequired ? `At least ${reasonMin} characters; recorded in the audit trail.` : undefined}>
-              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} autoFocus />
+            <Field label={reasonLabel} htmlFor={reasonId} required={reasonRequired} hint={reasonRequired ? `At least ${reasonMin} characters; recorded in the audit trail.` : undefined}>
+              <Textarea id={reasonId} value={reason} onChange={(e) => setReason(e.target.value)} rows={3} autoFocus />
             </Field>
           )}
         </div>

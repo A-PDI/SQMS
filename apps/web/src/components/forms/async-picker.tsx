@@ -72,7 +72,7 @@ export function AsyncPicker<T>({
       </div>
       <Popover.Portal>
         <Popover.Content align="start" sideOffset={4} className="z-50 w-[var(--radix-popover-trigger-width)] min-w-64 rounded-md border bg-surface p-1 shadow-lg">
-          <input autoFocus value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Type to search" className={cn(inputClass, "mb-1 h-8")} aria-label="Search" />
+          <input autoFocus value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Type to search" className={cn(inputClass, "mb-1 h-8")} aria-label="Search options" />
           <ul className="max-h-64 overflow-y-auto" role="listbox">
             {q.isLoading && <li className="px-2 py-1.5 text-xs text-muted-foreground">Searching...</li>}
             {q.data?.length === 0 && <li className="px-2 py-1.5 text-xs text-muted-foreground">No matches</li>}

@@ -53,7 +53,10 @@ export class SessionGuard implements CanActivate {
  */
 @Injectable()
 export class CsrfGuard implements CanActivate {
-  constructor(@Inject(APP_ENV) private readonly env: AppEnv) {}
+  constructor(
+    private readonly reflector: Reflector,
+    @Inject(APP_ENV) private readonly env: AppEnv,
+  ) {}
 
   private originAllowed(origin: string): boolean {
     if (this.env.APP_ORIGINS.length === 0) {
@@ -70,6 +73,13 @@ export class CsrfGuard implements CanActivate {
     const referer = req.header("referer");
     const presentedOrigin = origin ?? (referer ? safeOrigin(referer) : undefined);
     if (presentedOrigin && !this.originAllowed(presentedOrigin)) throw new ForbiddenError("Cross-origin request rejected");
+    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, [ctx.getHandler(), ctx.getClass()]);
+    if (isPublic && req.actor) {
+      // A public endpoint (e.g. signing in as someone else) does not act with the existing session's authority, so
+      // its token is not required; an allowed Origin/Referer is mandatory instead (blocks login CSRF).
+      if (!presentedOrigin) throw new ForbiddenError("Missing request origin");
+      return true;
+    }
     if (req.actor) {
       if (!csrfTokenValid(this.env.CSRF_SECRET, req.actor.sessionId, req.header("x-csrf-token"))) {
         throw new ForbiddenError("Missing or invalid CSRF token");

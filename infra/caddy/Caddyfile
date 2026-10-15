@@ -1,0 +1,33 @@
+# SQMS gateway: the only service exposed outside the Compose network.
+# SQMS_SITE_ADDRESS defaults to :8080 (plain HTTP, local evaluation). Set it to a DNS name, e.g. sqms.example.com,
+# and Caddy obtains and renews a TLS certificate automatically (ports 80/443 must then be published).
+{
+	admin off
+}
+
+{$SQMS_SITE_ADDRESS::8080} {
+	encode zstd gzip
+
+	# Uploads stream through to the API, which enforces the configured per-type limits.
+	request_body {
+		max_size 1GB
+	}
+
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

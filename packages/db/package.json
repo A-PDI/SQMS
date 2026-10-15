@@ -13,7 +13,6 @@
     "migrate:deploy": "prisma migrate deploy",
     "migrate:status": "prisma migrate status",
     "seed": "node dist/seed/run.js reference",
-    
     "test": "echo \"@sqms/db: covered by API integration tests\""
   },
   "dependencies": {
