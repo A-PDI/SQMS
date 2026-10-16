@@ -1,3 +1,4 @@
+import { InjectorSheetAdapter } from "./processors/injector-sheet";
 import { createPrismaClient } from "@sqms/db";
 import {
   ClamdScanner,
@@ -37,7 +38,7 @@ async function main() {
   await prisma.$connect();
   if (!(await scanner.ping())) log("warn", "malware scanner is not reachable; files will remain quarantined until it is", { scanner: scanner.name });
 
-  const adapters: IntegrationAdapter[] = [new LogIntegrationAdapter(ctx)];
+  const adapters: IntegrationAdapter[] = [new LogIntegrationAdapter(ctx), new InjectorSheetAdapter(ctx)];
   if (process.env.OUTBOX_WEBHOOK_URL && process.env.OUTBOX_WEBHOOK_SECRET) adapters.push(new WebhookIntegrationAdapter(process.env.OUTBOX_WEBHOOK_URL, process.env.OUTBOX_WEBHOOK_SECRET));
 
   const workerOpts = { connection, autorun: true };

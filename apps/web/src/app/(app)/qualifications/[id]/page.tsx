@@ -1,4 +1,5 @@
 "use client";
+import { FaiNcrAction } from "@/components/operations/quality-panels";
 
 import { useQuery } from "@tanstack/react-query";
 import { INSPECTION_OUTCOME, TEST_TYPE, humanize } from "@sqms/shared";
@@ -335,7 +336,7 @@ export default function QualificationPage() {
           </Card>
         </div>
         <div className="min-w-0">
-          <RecordPanel entityType="PRODUCT_QUALIFICATION" entityId={id} workflowSubjectType="PRODUCT_QUALIFICATION" />
+          <RecordPanel entityType="PRODUCT_QUALIFICATION" entityId={id} workflowSubjectType="PRODUCT_QUALIFICATION" canAttach={can("qualification:write") && !["APPROVED","CLOSED","REJECTED","CANCELLED"].includes(x.status)} />
         </div>
       </div>
     </>
@@ -615,6 +616,7 @@ function FaiTab({ x, write, onDone }: { x: Qualification; write: boolean; onDone
                 </TD>
                 <TD className="max-w-xs text-xs">
                   {f.summary ?? "-"}
+                  {f.outcome === "FAIL" && <FaiNcrAction faiId={f.id} results={x.inspectionResults} title={f.number} />}
                   {f.documentId && (
                     <div>
                       <Link className="text-accent hover:underline" href={`/documents/${f.documentId}`}>FAIR document</Link>

@@ -55,6 +55,16 @@ const SECTIONS: { title?: string; items: NavItem[] }[] = [
     ],
   },
   {
+    title: "Inspection & test lab",
+    items: [
+      { href: "/incoming", label: "Incoming inspection", icon: ClipboardCheck, perms: ["inspection:read"], internal: true },
+      { href: "/inspection-plans", label: "Inspection plans", icon: ListChecks, perms: ["inspection_plan:manage"], internal: true },
+      { href: "/injectors", label: "Injector tests & reports", icon: BarChart3, perms: ["injector:read"], internal: true },
+      { href: "/repairs", label: "Injector repairs", icon: Wrench, perms: ["injector:read"], internal: true },
+      { href: "/drawings", label: "Drawings", icon: FileText, perms: ["document:read"], internal: true },
+    ],
+  },
+  {
     title: "Sourcing",
     items: [
       { href: "/projects", label: "Sourcing projects", icon: FolderKanban, perms: ["project:read"], internal: true },
@@ -74,6 +84,7 @@ const SECTIONS: { title?: string; items: NavItem[] }[] = [
     title: "Change & quality",
     items: [
       { href: "/changes", label: "Change requests", icon: GitPullRequestArrow, perms: ["change:read"] },
+      { href: "/quality/signals", label: "Quality signals", icon: AlertOctagon, perms: ["ncr:read"], internal: true },
       { href: "/quality/ncrs", label: "Nonconformances", icon: AlertOctagon, perms: ["ncr:read"] },
       { href: "/quality/scars", label: "Corrective actions", icon: Wrench, perms: ["scar:read"] },
       { href: "/quality/deviations", label: "Deviations", icon: ListChecks, perms: ["deviation:read"] },
@@ -105,7 +116,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [q, setQ] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const unread = useQuery({ queryKey: ["notifications", "unread"], queryFn: () => api<{ unread: number }>("/notifications/unread-count"), refetchInterval: 60_000 });
-  const brand = me.branding?.shortName ?? "SQMS";
+  const brand = me.branding?.shortName ?? "PDI QMS";
 
   const visible = (i: NavItem) => (i.internal ? isInternal : true) && (i.external ? !isInternal : true) && (!i.perms || can(...i.perms)) && (!i.anyPerms || canAny(...i.anyPerms));
 
@@ -143,7 +154,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className={cn("fixed inset-y-0 left-0 z-30 flex w-60 flex-col bg-primary text-primary-foreground transition-transform lg:translate-x-0", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
         <Link href="/" className="flex h-14 items-center gap-2 border-b border-white/10 px-4">
           <span className="flex size-7 items-center justify-center rounded bg-white/15 text-xs font-bold">{brand.slice(0, 2)}</span>
-          <span className="truncate text-sm font-semibold">{me.branding?.productName ?? "Supplier Quality Management"}</span>
+          <span className="truncate text-sm font-semibold">{me.branding?.productName ?? "PDI Quality Management"}</span>
         </Link>
         {nav}
         <div className="border-t border-white/10 px-4 py-2 text-[11px] text-white/50">

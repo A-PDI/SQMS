@@ -51,7 +51,9 @@ export class LocalPasswordIdentityProvider implements IdentityProvider {
     if (user.status !== "ACTIVE") return { ok: false, reason: "not_activated", userId: user.id };
     const data: { failedLoginCount: number; lockedUntil: null; lastLoginAt: Date; passwordHash?: string } = { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() };
     if (passwordNeedsRehash(user.passwordHash)) data.passwordHash = await hashPassword(password);
-    await this.db.client.user.update({ where: { id: user.id }, data });
+    // A concurrent reset/disable must win over this in-flight authentication and legacy rehash.
+    const changed = await this.db.client.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash, status: "ACTIVE" }, data });
+    if (!changed.count) return { ok: false, reason: "invalid_credentials", userId: user.id };
     return { ok: true, userId: user.id, userType: user.userType, mfaRequired: user.mfaRequired };
   }
 }

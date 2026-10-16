@@ -11,7 +11,7 @@ const event = (id: string, attempts = 0): OutboxEvent =>
 
 function fakeContext(events: OutboxEvent[]) {
   const update = vi.fn().mockResolvedValue({});
-  const ctx = { prisma: { outboxEvent: { findMany: vi.fn().mockResolvedValue(events), update } }, log: vi.fn() } as unknown as WorkerContext;
+  const ctx = { prisma: { outboxEvent: { findMany: vi.fn().mockResolvedValue(events), updateMany: vi.fn().mockResolvedValue({ count: 1 }), update } }, log: vi.fn() } as unknown as WorkerContext;
   return { ctx, update };
 }
 
@@ -75,5 +75,12 @@ describe("dispatchOutbox", () => {
     const { ctx } = fakeContext([event("e")]);
     await dispatchOutbox(ctx, [other, ok]);
     expect(other.dispatch).not.toHaveBeenCalled();
+  });
+  it("leaves an event claimed by another worker untouched", async () => {
+    const { ctx, update } = fakeContext([event("leased")]);
+    vi.mocked(ctx.prisma.outboxEvent.updateMany).mockResolvedValue({ count: 0 });
+    const adapter = { name: "exclusive", handles: () => true, dispatch: vi.fn() };
+    expect(await dispatchOutbox(ctx, [adapter])).toBe(0);
+    expect(adapter.dispatch).not.toHaveBeenCalled(); expect(update).not.toHaveBeenCalled();
   });
 });

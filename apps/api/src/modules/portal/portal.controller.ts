@@ -1,3 +1,4 @@
+import { AuthorizeInService } from "../../common/auth/decorators";
 import { Controller, Get, Module } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Actor } from "../../common/auth/actor";
@@ -12,6 +13,7 @@ import { DbService } from "../../common/db/db.service";
 @ApiTags("portal")
 @Controller("portal")
 @AudienceScope("external")
+@AuthorizeInService()
 export class PortalController {
   constructor(private readonly db: DbService) {}
 
@@ -36,4 +38,5 @@ export class PortalController {
 }
 
 @Module({ controllers: [PortalController] })
+@AuthorizeInService()
 export class PortalModule {}

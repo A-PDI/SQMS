@@ -1,4 +1,5 @@
 import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 
 /** Argon2id parameters (OWASP Password Storage Cheat Sheet minimum: m=19 MiB, t=2, p=1). */
 export const PASSWORD_HASH_OPTIONS = {
@@ -17,6 +18,13 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
   try {
+    // Imported local accounts retain bcrypt until their first successful login.
+    // Do not accept bcrypt's silent 72-byte truncation when upgrading a password.
+    if (/^\$2[aby]\$\d{2}\$/.test(hash)) {
+      const cost = Number(hash.slice(4, 6));
+      if (cost < 4 || cost > 14 || Buffer.byteLength(password, "utf8") > 72) return false;
+      return await bcrypt.compare(password, hash.replace(/^\$2y\$/, "$2b$"));
+    }
     return await argon2.verify(hash, password);
   } catch {
     return false;
@@ -24,6 +32,7 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
 }
 
 export function passwordNeedsRehash(hash: string): boolean {
+  if (/^\$2[aby]\$/.test(hash)) return true;
   return argon2.needsRehash(hash, {
     memoryCost: PASSWORD_HASH_OPTIONS.memoryCost,
     timeCost: PASSWORD_HASH_OPTIONS.timeCost,

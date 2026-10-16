@@ -17,6 +17,7 @@ ARG SQMS_SERVICE=api
 # ---------------------------------------------------------------------------------------------- pnpm bases
 FROM ${NODE_BUILD_IMAGE} AS build-base
 ARG PNPM_VERSION
+ARG NODE_USE_ENV_PROXY=0
 ENV PNPM_HOME=/pnpm \
     COREPACK_HOME=/corepack \
     PATH=/pnpm:$PATH \
@@ -29,6 +30,7 @@ WORKDIR /repo
 
 FROM ${NODE_IMAGE} AS slim-base
 ARG PNPM_VERSION
+ARG NODE_USE_ENV_PROXY=0
 ENV PNPM_HOME=/pnpm \
     COREPACK_HOME=/corepack \
     PATH=/pnpm:$PATH \
@@ -48,6 +50,7 @@ COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
 COPY packages/server-core/package.json packages/server-core/
+COPY packages/legacy-domain/package.json packages/legacy-domain/
 COPY e2e/package.json e2e/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     --mount=type=secret,id=build_ca,required=false \
@@ -73,6 +76,7 @@ COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
 COPY packages/server-core/package.json packages/server-core/
+COPY packages/legacy-domain/package.json packages/legacy-domain/
 COPY e2e/package.json e2e/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     --mount=type=secret,id=build_ca,required=false \
@@ -81,6 +85,10 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
 COPY --from=build /repo/packages/db/dist packages/db/dist
 COPY --from=build /repo/packages/server-core/dist packages/server-core/dist
+COPY --from=build /repo/packages/legacy-domain/index.* packages/legacy-domain/
+COPY --from=build /repo/packages/legacy-domain/standard-plans.json packages/legacy-domain/standard-plans.json
+COPY --from=build /repo/packages/legacy-domain/services packages/legacy-domain/services
+COPY --from=build /repo/packages/legacy-domain/assets packages/legacy-domain/assets
 
 # ---------------------------------------------------------------------------------------------- api
 FROM ${NODE_IMAGE} AS api

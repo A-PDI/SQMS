@@ -1,13 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, Res } from "@nestjs/common";
+import { AuthorizeInService } from "../../common/auth/decorators";
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import { ApiBody, ApiConsumes, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
 import type { EntityType } from "@sqms/db";
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
+import { IsIn, IsOptional, IsObject, IsString, IsUUID, MaxLength } from "class-validator";
 import type { Request, Response } from "express";
 import type { Actor } from "../../common/auth/actor";
 import { AudienceScope, CurrentActor } from "../../common/auth/decorators";
 import { FilesService } from "./files.service";
+import { ExpectedVersion } from "../../common/http/dto-helpers";
 
-const ATTACHABLE: EntityType[] = ["SUPPLIER", "SUPPLIER_SITE", "INTERNAL_PART", "SUPPLIER_PRODUCT", "CONFIGURATION_REVISION", "SOURCING_PROJECT", "PRODUCT_QUALIFICATION", "CHANGE_REQUEST", "DEVIATION", "NCR", "SCAR", "FIRST_ARTICLE_INSPECTION"];
+const ATTACHABLE: EntityType[] = ["INCOMING_INSPECTION", "INJECTOR_TEST", "INJECTOR_REPAIR", "SUPPLIER", "SUPPLIER_SITE", "INTERNAL_PART", "SUPPLIER_PRODUCT", "CONFIGURATION_REVISION", "SOURCING_PROJECT", "PRODUCT_QUALIFICATION", "CHANGE_REQUEST", "DEVIATION", "NCR", "SCAR", "FIRST_ARTICLE_INSPECTION"];
 
 class AttachmentQuery {
   @ApiProperty({ enum: ATTACHABLE }) @IsIn(ATTACHABLE) entityType: EntityType;
@@ -21,6 +23,12 @@ class AddAttachmentDto extends AttachmentQuery {
   @IsOptional()
   @IsIn(["INTERNAL", "SUPPLIER"])
   visibility?: "INTERNAL" | "SUPPLIER";
+  @IsOptional() @IsObject() context?: Record<string, unknown>;
+}
+class EditAttachmentDto {
+  @ExpectedVersion() expectedVersion: number;
+  @IsOptional() @IsString() @MaxLength(500) description?: string;
+  @IsOptional() @IsObject() context?: Record<string, unknown>;
 }
 
 function contentDisposition(kind: "attachment" | "inline", filename: string): string {
@@ -31,6 +39,7 @@ function contentDisposition(kind: "attachment" | "inline", filename: string): st
 @ApiTags("files")
 @Controller()
 @AudienceScope("any")
+@AuthorizeInService()
 export class FilesController {
   constructor(private readonly files: FilesService) {}
 
@@ -91,5 +100,9 @@ export class FilesController {
   @HttpCode(204)
   remove(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
     return this.files.removeAttachment(actor, id);
+  }
+  @Patch("record-attachments/:id")
+  edit(@CurrentActor() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Body() dto: EditAttachmentDto) {
+    return this.files.editAttachment(actor, id, dto);
   }
 }

@@ -4,8 +4,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: { default: "SQMS", template: "%s | SQMS" },
-  description: "Supplier Quality Management System",
+  title: { default: "PDI QMS", template: "%s | PDI QMS" },
+  description: "PDI Quality Management",
   robots: { index: false, follow: false },
 };
 

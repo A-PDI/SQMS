@@ -4,7 +4,7 @@ import type { Actor } from "../../common/auth/actor";
 import { AccessScope } from "../../common/auth/access-scope";
 import { ActivityService } from "../../common/audit/activity.service";
 import { AuditService, diffControlled } from "../../common/audit/audit.service";
-import { DbService, type Tx } from "../../common/db/db.service";
+import { DbService, type AfterCommit, type Tx } from "../../common/db/db.service";
 import { BusinessRuleError, InvalidTransitionError, NotFoundError, StaleVersionError } from "../../common/errors/app-errors";
 import { toDate } from "../../common/http/dto-helpers";
 import { pageArgs, sortArg, trimQ, type Page } from "../../common/http/pagination";
@@ -25,6 +25,9 @@ const INCLUDE = {
   configurationRevision: { select: { id: true, revisionLabel: true, configuration: { select: { configCode: true } } } },
   characteristic: { select: { id: true, charNumber: true, name: true, classification: true } },
   qualification: { select: { id: true, number: true, status: true } },
+  incomingInspection: { select: { id: true, number: true, originalPartNumber: true, originalSupplier: true } },
+  firstArticle: { select: { id: true, number: true } },
+  defectLines: true, reportSections: { where: { archivedAt: null }, orderBy: { sortOrder: "asc" } }, scarLinks: { include: { scar: { select: { id: true, number: true, status: true } } } },
   owner: { select: { id: true, displayName: true } },
   correctiveActions: { select: { id: true, number: true, status: true, responseDueDate: true } },
   deviations: { select: { id: true, number: true, type: true, status: true } },
@@ -46,7 +49,7 @@ export class NcrService {
   /** Removes internal-only content for supplier users. */
   present(actor: Actor, n: NcrWithIncludes) {
     if (AccessScope.of(actor).isInternal) return n;
-    const { internalNotes: _notes, qualification: _q, ...rest } = n;
+    const { internalNotes: _notes, qualification: _q, legacyException: _legacy, incomingInspection: _incoming, firstArticle: _fai, defectLines: _defects, reportSections: _sections, scarLinks: _links, ...rest } = n;
     return rest;
   }
 
@@ -91,10 +94,28 @@ export class NcrService {
     let internalPartId = dto.internalPartId ?? null;
     let supplierPartId = dto.supplierPartId ?? null;
     let siteId = dto.siteId ?? null;
+    if (dto.source === "FIRST_ARTICLE" && !dto.firstArticleId || dto.source === "INCOMING_INSPECTION" && !dto.incomingInspectionId || dto.source === "ENGINEERING_VALIDATION" && !dto.testRecordId) throw new BusinessRuleError("This origin requires a linked source record; use OTHER for a manual unattributed event");
+    if (dto.incomingInspectionId && dto.source !== "INCOMING_INSPECTION" || dto.firstArticleId && dto.source !== "FIRST_ARTICLE" || dto.testRecordId && dto.source !== "ENGINEERING_VALIDATION") throw new BusinessRuleError("NCR origin kind does not match the source relationship");
     const agree = (label: string, current: string | null, value: string) => {
       if (current && current !== value) throw new BusinessRuleError(`The ${label} does not match the other references`);
       return value;
     };
+    if (dto.incomingInspectionId) {
+      const source = await tx.incomingInspection.findUnique({ where: { id: dto.incomingInspectionId } });
+      if (!source) throw new NotFoundError("Incoming inspection");
+      if (source.supplierId) supplierId = agree("inspection supplier", supplierId, source.supplierId);
+      if (source.internalPartId) internalPartId = agree("inspection part", internalPartId, source.internalPartId);
+      if (source.siteId) siteId = agree("inspection site", siteId, source.siteId);
+      if (dto.configurationRevisionId && source.configurationRevisionId !== dto.configurationRevisionId) throw new BusinessRuleError("Inspection configuration does not match the NCR");
+    }
+    if (dto.firstArticleId) {
+      const source = await tx.firstArticleInspection.findUnique({ where: { id: dto.firstArticleId } });
+      if (!source || source.qualificationId !== dto.qualificationId || source.configurationRevisionId !== dto.configurationRevisionId) throw new BusinessRuleError("FAI origin must match the qualification and configuration revision");
+    }
+    if (dto.testRecordId) {
+      const source = await tx.testRecord.findUnique({ where: { id: dto.testRecordId }, include: { qualification: true } });
+      if (!source || source.qualificationId !== dto.qualificationId || source.qualification.configurationRevisionId !== dto.configurationRevisionId) throw new BusinessRuleError("Validation origin must match its qualification and revision");
+    }
     if (dto.supplierProductId) {
       const sp = await tx.supplierProduct.findUnique({ where: { id: dto.supplierProductId } });
       if (!sp) throw new NotFoundError("Supplier product");
@@ -108,7 +129,11 @@ export class NcrService {
       if (!rev) throw new NotFoundError("Configuration revision");
       supplierId = agree("configuration supplier", supplierId, rev.configuration.supplierId);
       internalPartId = agree("configuration part", internalPartId, rev.configuration.supplierProduct.internalPartId);
+      siteId = agree("configuration site", siteId, rev.configuration.supplierProduct.siteId);
+      supplierPartId = agree("configuration supplier part", supplierPartId, rev.configuration.supplierProduct.supplierPartId);
+      if (dto.supplierProductId && rev.configuration.supplierProductId !== dto.supplierProductId) throw new BusinessRuleError("Configuration supplier-product differs from the referenced product");
     }
+    if (dto.characteristicId && !dto.configurationRevisionId) throw new BusinessRuleError("A characteristic requires its configuration revision");
     if (dto.characteristicId) {
       const c = await tx.criticalCharacteristic.findUnique({ where: { id: dto.characteristicId } });
       if (!c || (dto.configurationRevisionId && c.configurationRevisionId !== dto.configurationRevisionId)) throw new BusinessRuleError("The characteristic does not belong to the referenced configuration revision");
@@ -118,19 +143,28 @@ export class NcrService {
       if (!q) throw new NotFoundError("Product qualification");
       supplierId = agree("qualification supplier", supplierId, q.supplierId);
       internalPartId = agree("qualification part", internalPartId, q.supplierProduct.internalPartId);
+      if (dto.configurationRevisionId && q.configurationRevisionId !== dto.configurationRevisionId) throw new BusinessRuleError("Qualification revision differs from the NCR revision");
     }
-    if (!supplierId) throw new BusinessRuleError("Identify the supplier (or the supplier product)");
-    if (!internalPartId) throw new BusinessRuleError("Identify the affected part");
-    const [supplier, part] = await Promise.all([tx.supplier.findUnique({ where: { id: supplierId } }), tx.internalPart.findUnique({ where: { id: internalPartId } })]);
-    if (!supplier) throw new NotFoundError("Supplier");
-    if (!part) throw new NotFoundError("Part");
-    if (siteId && !(await tx.supplierSite.findFirst({ where: { id: siteId, supplierId } }))) throw new BusinessRuleError("The site does not belong to the supplier");
-    if (supplierPartId && !(await tx.supplierPart.findFirst({ where: { id: supplierPartId, supplierId } }))) throw new BusinessRuleError("The supplier part does not belong to the supplier");
+
+
+    const [supplier, part] = await Promise.all([supplierId ? tx.supplier.findUnique({ where: { id: supplierId } }) : null, internalPartId ? tx.internalPart.findUnique({ where: { id: internalPartId } }) : null]);
+    if (supplierId && !supplier) throw new NotFoundError("Supplier");
+    if (internalPartId && !part) throw new NotFoundError("Part");
+    if (siteId && !supplierId || supplierPartId && !supplierId) throw new BusinessRuleError("A site or supplier part requires its supplier");
+    if (siteId && !(await tx.supplierSite.findFirst({ where: { id: siteId, supplierId: supplierId! } }))) throw new BusinessRuleError("The site does not belong to the supplier");
+    if (supplierPartId && !(await tx.supplierPart.findFirst({ where: { id: supplierPartId, supplierId: supplierId! } }))) throw new BusinessRuleError("The supplier part does not belong to the supplier");
     return { supplier, part, supplierId, internalPartId, supplierPartId, siteId };
   }
 
   async create(actor: Actor, dto: CreateNcrDto) {
     return this.db.tx(async (tx, after) => {
+      const n = await this.createIn(tx, after, actor, dto);
+      await tx.ncrDefectLine.create({ data: { ncrId: n.id, defectCode: "OTHER", deviationDirection: "UNKNOWN", severity: n.severity, specification: { specification: n.expectedSpecification ?? null, physicalFeatureUnresolved: true }, actualCondition: n.defectDescription, quantityAffected: n.quantityAffected ?? 1 } });
+      return n;
+    });
+  }
+
+  async createIn(tx: Tx, after: AfterCommit, actor: Actor, dto: CreateNcrDto) {
       const refs = await this.resolveRefs(tx, dto);
       const ownerId = dto.ownerId ?? actor.userId;
       const owner = await tx.user.findFirst({ where: { id: ownerId, userType: "INTERNAL", status: "ACTIVE" } });
@@ -139,6 +173,7 @@ export class NcrService {
       const n = await tx.nonconformance.create({
         data: {
           number,
+          incomingInspectionId: dto.incomingInspectionId, firstArticleId: dto.firstArticleId, testRecordId: dto.testRecordId,
           title: dto.title,
           dateIdentified: toDate(dto.dateIdentified)!,
           source: dto.source,
@@ -150,6 +185,7 @@ export class NcrService {
           configurationRevisionId: dto.configurationRevisionId ?? null,
           characteristicId: dto.characteristicId ?? null,
           qualificationId: dto.qualificationId ?? null,
+          purchaseOrder: dto.purchaseOrder,
           lotNumber: dto.lotNumber ?? null,
           serialNumbers: dto.serialNumbers ?? null,
           quantityAffected: dto.quantityAffected,
@@ -168,11 +204,11 @@ export class NcrService {
         },
       });
       await this.audit.record({ eventType: "ncr.created", entityType: "NCR", entityId: n.id, entityLabel: number, metadata: { severity: dto.severity, source: dto.source, supplierId: refs.supplierId, quantityAffected: dto.quantityAffected } }, tx);
-      await this.activity.record(tx, { entityType: "NCR", entityId: n.id, entityLabel: number, verb: "created", summary: `${dto.severity} nonconformance ${number} raised on ${refs.part.partNumber} from ${refs.supplier.name}: ${dto.title}`, supplierId: refs.supplierId, internalPartId: refs.internalPartId });
-      await this.notifications.notify(tx, after, { eventType: "ncr.created", title: `${dto.severity} NCR ${number}: ${refs.part.partNumber} - ${refs.supplier.name}`, entityType: "NCR", entityId: n.id, link: `/quality/ncrs/${n.id}`, userIds: ownerId !== actor.userId ? [ownerId] : [], roleKeys: dto.severity === "CRITICAL" ? ["SUPPLIER_QUALITY", "APPROVER"] : ["SUPPLIER_QUALITY"], excludeUserIds: [actor.userId] });
-      await this.outbox.publish(tx, "ncr.created", "NCR", n.id, { number, severity: dto.severity, supplierNumber: refs.supplier.supplierNumber, partNumber: refs.part.partNumber });
+      await this.activity.record(tx, { entityType: "NCR", entityId: n.id, entityLabel: number, verb: "created", summary: `${dto.severity} nonconformance ${number} raised on ${refs.part?.partNumber ?? "unresolved part"} from ${refs.supplier?.name ?? "unattributed source"}: ${dto.title}`, supplierId: refs.supplierId, internalPartId: refs.internalPartId });
+      await this.notifications.notify(tx, after, { eventType: "ncr.created", title: `${dto.severity} NCR ${number}: ${refs.part?.partNumber ?? "unresolved part"} - ${refs.supplier?.name ?? "unattributed source"}`, entityType: "NCR", entityId: n.id, link: `/quality/ncrs/${n.id}`, userIds: ownerId !== actor.userId ? [ownerId] : [], roleKeys: dto.severity === "CRITICAL" ? ["SUPPLIER_QUALITY", "APPROVER"] : ["SUPPLIER_QUALITY"], excludeUserIds: [actor.userId] });
+      await this.outbox.publish(tx, "ncr.created", "NCR", n.id, { number, severity: dto.severity, supplierNumber: refs.supplier?.supplierNumber ?? null, partNumber: refs.part?.partNumber ?? "unresolved part" });
       return tx.nonconformance.findUniqueOrThrow({ where: { id: n.id }, include: INCLUDE });
-    });
+
   }
 
   async lock(tx: Tx, id: string, expectedVersion?: number) {
@@ -260,7 +296,7 @@ export class NcrService {
     return this.db.tx(async (tx) => {
       const n = await this.lock(tx, id, expectedVersion);
       if (!OPEN_NCR_STATUSES.includes(n.status)) throw new InvalidTransitionError("NCR", n.status, "cancelled");
-      const scars = await tx.correctiveAction.count({ where: { ncrId: id, status: { notIn: ["CANCELLED", "CLOSED"] } } });
+      const scars = await tx.correctiveAction.count({ where: { OR: [{ ncrId: id }, { ncrLinks: { some: { ncrId: id } } }], status: { notIn: ["CANCELLED", "CLOSED"] } } });
       if (scars) throw new BusinessRuleError("Cancel or close the corrective actions raised from this NCR first");
       await tx.nonconformance.update({ where: { id }, data: { status: "CANCELLED", closedAt: new Date(), closedById: actor.userId, closureComment: reason, version: { increment: 1 } } });
       await this.audit.record({ eventType: "ncr.cancelled", entityType: "NCR", entityId: id, entityLabel: n.number, changes: { status: { before: n.status, after: "CANCELLED" } }, reason }, tx);

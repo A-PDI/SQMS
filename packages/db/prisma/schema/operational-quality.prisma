@@ -1,0 +1,142 @@
+model NcrDefectLine {
+  id            String @id @default(uuid(7)) @db.Char(36)
+  ncrId         String @db.Char(36)
+  featureId     String? @db.Char(36)
+  measurementId String? @db.Char(36)
+  firstArticleResultId String? @db.Char(36)
+  defectCode    String @db.VarChar(80)
+  deviationDirection String @db.VarChar(30)
+  severity      NcrSeverity
+  specification Json
+  actualCondition String @db.Text
+  quantityAffected Int
+  createdAt     DateTime @default(now()) @db.DateTime(3)
+  ncr           Nonconformance @relation(fields: [ncrId], references: [id])
+  feature       FeatureIdentity? @relation(fields: [featureId], references: [id])
+  measurement   IncomingMeasurement? @relation(fields: [measurementId], references: [id])
+  firstArticleResult InspectionResult? @relation(fields: [firstArticleResultId], references: [id])
+  @@index([featureId, defectCode, deviationDirection])
+  @@map("ncr_defect_lines")
+}
+
+model NcrReportSection {
+  id        String @id @default(uuid(7)) @db.Char(36)
+  ncrId     String @db.Char(36)
+  title     String @db.VarChar(250)
+  body      String @db.LongText
+  sortOrder Int @default(0)
+  archivedAt DateTime? @db.DateTime(3)
+  ncr       Nonconformance @relation(fields: [ncrId], references: [id])
+  @@index([ncrId, sortOrder])
+  @@map("ncr_report_sections")
+}
+
+model NcrScarLink {
+  ncrId  String @db.Char(36)
+  scarId String @db.Char(36)
+  reason String @db.Text
+  linkedById String @db.Char(36)
+  linkedAt DateTime @default(now()) @db.DateTime(3)
+  ncr    Nonconformance @relation(fields: [ncrId], references: [id])
+  scar   CorrectiveAction @relation(fields: [scarId], references: [id])
+  @@id([ncrId, scarId])
+  @@index([scarId])
+  @@map("ncr_scar_links")
+}
+
+model RecurrenceReview {
+  id             String @id @default(uuid(7)) @db.Char(36)
+  currentNcrId   String @db.Char(36)
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  historicalNcrId String @db.Char(36)
+  status         String @default("CANDIDATE") @db.VarChar(20)
+  explanation    Json
+  reason         String? @db.Text
+  reviewedById   String? @db.Char(36)
+  reviewedAt     DateTime? @db.DateTime(3)
+  currentNcr     Nonconformance @relation("CurrentRecurrence", fields: [currentNcrId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  historicalNcr  Nonconformance @relation("HistoricalRecurrence", fields: [historicalNcrId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([currentNcrId, historicalNcrId])
+  @@index([historicalNcrId])
+  @@map("recurrence_reviews")
+}
+
+model QualityCommand {
+  key String @id @db.VarChar(100)
+  payloadHash String @db.Char(64)
+  actorId String @db.Char(36)
+  sourceId String @db.Char(36)
+  ncrId String? @unique @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  ncr Nonconformance? @relation(fields: [ncrId], references: [id], onDelete: Restrict)
+  @@map("quality_commands")
+}
+
+model InjectorTest {
+  id             String @id @default(uuid(7)) @db.Char(36)
+  reportExternalId String @db.VarChar(200)
+  slotPosition   Int
+  partNumber     String? @db.VarChar(200)
+  serialNumber   String? @db.VarChar(200)
+  normalizedSerial String? @db.VarChar(200)
+  jobNumber      String? @db.VarChar(200)
+  testAt         DateTime? @db.DateTime(3)
+  outcome        String @db.VarChar(20)
+  stepsTotal     Int @default(0)
+  stepsPassed    Int @default(0)
+  stepsFailed    Int @default(0)
+  report         Json
+  sourceHash     String @db.Char(64)
+  syncedAt       DateTime @default(now()) @db.DateTime(3)
+  version        Int @default(0)
+  @@unique([reportExternalId, slotPosition])
+  @@index([partNumber, normalizedSerial, testAt])
+  @@index([jobNumber, testAt])
+  @@map("injector_tests")
+}
+
+model InjectorRepairCase {
+  id            String @id @default(uuid(7)) @db.Char(36)
+  partNumber    String @db.VarChar(200)
+  serialNumber  String @db.VarChar(200)
+  normalizedSerial String @db.VarChar(200)
+  /// Present only while active. Unique composite enforces a single active case even under concurrent requests.
+  activeKey     String? @unique @db.Char(64)
+  status        String @default("OPEN") @db.VarChar(30)
+  initialTestSnapshot Json
+  finalTestSnapshot Json?
+  failureCategories Json
+  openedById    String? @db.Char(36)
+  openedAt      DateTime @default(now()) @db.DateTime(3)
+  closedById    String? @db.Char(36)
+  closedAt      DateTime? @db.DateTime(3)
+  version       Int @default(0)
+  attempts      InjectorRepairAttempt[]
+  @@index([partNumber, normalizedSerial])
+  @@map("injector_repair_cases")
+}
+
+model InjectorRepairAttempt {
+  id           String @id @default(uuid(7)) @db.Char(36)
+  repairCaseId String @db.Char(36)
+  attemptNumber Int
+  beforeSnapshot Json
+  afterSnapshot Json?
+  repairDate   DateTime @db.DateTime(3)
+  technicianId String? @db.Char(36)
+  technician   String @db.VarChar(200)
+  diagnosis    String @db.Text
+  hypothesis   String? @db.Text
+  expectedOutcome String? @db.Text
+  observedOutcome String? @db.Text
+  notes        String? @db.Text
+  changes      Json
+  deltas       Json?
+  status       String @default("WAITING_RETEST") @db.VarChar(30)
+  outcome      String @default("PENDING") @db.VarChar(20)
+  version      Int @default(0)
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+  repairCase   InjectorRepairCase @relation(fields: [repairCaseId], references: [id])
+  @@unique([repairCaseId, attemptNumber])
+  @@map("injector_repair_attempts")
+}

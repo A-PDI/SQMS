@@ -24,3 +24,8 @@ infra/data/
 next-env.d.ts
 *.tsbuildinfo
 backups/
+
+# Private source copies, account-hash intake and migration working data
+migration-work/
+__pycache__/
+*.pyc

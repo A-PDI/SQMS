@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { EICAR_TEST_STRING } from "@sqms/server-core";
 import { PDF_BYTES } from "./fixtures";
-import { createTeam, expectStatus, startApp, uniq, waitFor, type Team, type TestContext } from "./helpers";
+import { createTeam, createUser, expectStatus, login, startApp, uniq, waitFor, type Team, type TestContext } from "./helpers";
 
 
 describe("Secure file upload, scanning and retrieval", () => {
@@ -94,6 +94,22 @@ describe("Secure file upload, scanning and retrieval", () => {
     expect(ro.status).toBe(403);
     const anon = await ctx.prisma.fileObject.count();
     expect(anon).toBeGreaterThan(0);
+  });
+
+  it("does not grant document-file access through internal organization membership alone", async () => {
+    const user = await createUser(ctx.prisma, { roles: [] });
+    const restricted = await login(ctx, user.email);
+    const type = await ctx.prisma.documentType.findUniqueOrThrow({ where: { code: "VAL-02" } });
+    const created = expectStatus(await team.quality.session.post("/documents", { documentTypeId: type.id, title: `Protected file ${uniq()}`, submissionMethod: "UPLOAD" }), 201).body;
+    const document = expectStatus(await team.quality.session.get(`/documents/${created.document.id}`), 200).body;
+    const file = expectStatus(await team.quality.session.upload("/files", "protected-report.pdf", PDF_BYTES), 201).body;
+    await waitStatus(file.id, "CLEAN");
+    expectStatus(await team.quality.session.post(`/documents/${document.id}/revisions/${document.revisions[0].id}/files`, { fileId: file.id }), 201);
+    expect((await team.readOnly.session.get(`/files/${file.id}`)).status).toBe(200);
+    expect((await restricted.get(`/documents/${document.id}`)).status).toBe(403);
+    for (const suffix of ["", "/download", "/preview"]) {
+      expect((await restricted.get(`/files/${file.id}${suffix}`)).status).toBe(404);
+    }
   });
 
   it("attaches evidence to a record and lists it", async () => {

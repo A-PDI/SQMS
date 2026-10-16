@@ -28,6 +28,22 @@ export class EntityAccessService {
 
   constructor(private readonly db: DbService) {
     this.resolvers = {
+      INCOMING_INSPECTION: async (c, id) => {
+        const r = await c.incomingInspection.findUnique({ where: { id }, select: { number: true, supplierId: true } });
+        return r && { label: r.number, supplierId: r.supplierId, supplierVisible: false, readPermission: "inspection:read" };
+      },
+      INSPECTION_PLAN: async (c, id) => {
+        const r = await c.inspectionPlan.findUnique({ where: { id }, select: { code: true } });
+        return r && { label: r.code, supplierId: null, supplierVisible: false, readPermission: "inspection:read" };
+      },
+      INJECTOR_TEST: async (c, id) => {
+        const r = await c.injectorTest.findUnique({ where: { id }, select: { reportExternalId: true, slotPosition: true } });
+        return r && { label: `${r.reportExternalId}/${r.slotPosition}`, supplierId: null, supplierVisible: false, readPermission: "injector:read" };
+      },
+      INJECTOR_REPAIR: async (c, id) => {
+        const r = await c.injectorRepairCase.findUnique({ where: { id }, select: { serialNumber: true } });
+        return r && { label: r.serialNumber, supplierId: null, supplierVisible: false, readPermission: "injector:read" };
+      },
       SUPPLIER: async (c, id) => {
         const r = await c.supplier.findUnique({ where: { id }, select: { id: true, name: true, supplierNumber: true } });
         return r && { label: `${r.supplierNumber} ${r.name}`, supplierId: r.id, supplierVisible: true, readPermission: "supplier:read" };

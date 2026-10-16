@@ -1,4 +1,5 @@
 "use client";
+import { QualityHistory } from "@/components/operations/quality-panels";
 
 import { useQuery } from "@tanstack/react-query";
 import { SUPPLIER_QUALIFICATION_TYPE, humanize } from "@sqms/shared";
@@ -477,6 +478,7 @@ export default function SupplierDetailPage() {
           </Tabs>
         </div>
         <div className="min-w-0">
+          <QualityHistory supplierId={id} />
           <RecordPanel entityType="SUPPLIER" entityId={id} />
         </div>
       </div>

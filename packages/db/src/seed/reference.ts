@@ -90,9 +90,10 @@ const PATHWAYS = [
 ];
 
 export const DEFAULT_SETTINGS: { key: string; value: Prisma.InputJsonValue; description: string }[] = [
+  { key: "qms.recurrence.lookbackDays", value: 1825, description: "Historical defect lookback in days; closed NCRs and pre-approval events remain eligible." },
   {
     key: "branding",
-    value: { companyName: "PDI", productName: "Supplier Quality Management System", shortName: "SQMS", primaryColor: "#1f3a5f", accentColor: "#2b6cb0", logoFileId: null },
+    value: { companyName: "PDI", productName: "PDI Quality Management", shortName: "PDI QMS", primaryColor: "#1f3a5f", accentColor: "#2b6cb0", logoFileId: null },
     description: "Company name, logo and brand colors.",
   },
   { key: "files.maxUploadMb", value: 250, description: "Global maximum upload size in MB (per-type limits also apply)." },

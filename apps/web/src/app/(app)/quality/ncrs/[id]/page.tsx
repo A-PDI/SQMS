@@ -1,4 +1,5 @@
 "use client";
+import { NcrReportPanel } from "@/components/operations/quality-panels";
 
 import { useQuery } from "@tanstack/react-query";
 import { NCR_DISPOSITION, NCR_DISPOSITION_LABELS, NCR_SEVERITY, humanize } from "@sqms/shared";
@@ -52,9 +53,11 @@ interface Ncr {
   closureComment: string | null;
   createdAt: string;
   version: number;
-  supplier: { id: string; name: string; supplierNumber: string };
+  supplier: { id: string; name: string; supplierNumber: string } | null;
   site: { id: string; siteCode: string; name: string } | null;
-  internalPart: { id: string; partNumber: string; description: string };
+  internalPart: { id: string; partNumber: string; description: string } | null;
+  incomingInspection?: { originalPartNumber: string | null; originalSupplier: string | null } | null;
+  legacyException?: { originalPartNumber?: string; originalSupplier?: string } | null;
   supplierPart: { id: string; supplierPartNumber: string } | null;
   supplierProductId: string | null;
   owner: { id: string; displayName: string } | null;
@@ -74,6 +77,8 @@ export default function NcrPage() {
   if (q.isLoading) return <PageLoading />;
   if (q.error || !q.data) return <ErrorAlert error={q.error} />;
   const n = q.data;
+  const originalPart = n.incomingInspection?.originalPartNumber ?? n.legacyException?.originalPartNumber;
+  const originalSupplier = n.incomingInspection?.originalSupplier ?? n.legacyException?.originalSupplier;
   const refetch = () => void q.refetch();
   const post = (path: string, body: Record<string, unknown>) => api(`/ncrs/${id}/${path}`, { method: "POST", body: { expectedVersion: n.version, ...body } }).then(refetch);
   const open = OPEN.includes(n.status);
@@ -85,7 +90,7 @@ export default function NcrPage() {
       <PageHeader
         title={n.title}
         breadcrumbs={[{ href: "/quality/ncrs", label: "Nonconformances" }, { label: n.number }]}
-        description={`${n.number} · ${n.internalPart.partNumber} · ${n.supplier.name}${n.site ? ` @ ${n.site.siteCode}` : ""}`}
+        description={`${n.number} · ${n.internalPart?.partNumber ?? originalPart ?? "Unresolved part"} · ${n.supplier?.name ?? originalSupplier ?? "Unattributed"}${n.site ? ` @ ${n.site.siteCode}` : ""}`}
         meta={
           <>
             <StatusBadge status={n.status} />
@@ -150,8 +155,8 @@ export default function NcrPage() {
             <CardBody>
               <DetailGrid
                 items={[
-                  { label: "Supplier", value: isInternal ? <Link className="text-accent hover:underline" href={`/suppliers/${n.supplier.id}`}>{n.supplier.name}</Link> : n.supplier.name },
-                  { label: "Part", value: isInternal ? <Link className="text-accent hover:underline" href={`/products/${n.internalPart.id}`}>{n.internalPart.partNumber}</Link> : n.internalPart.partNumber },
+                  { label: "Supplier", value: n.supplier ? (isInternal ? <Link className="text-accent hover:underline" href={`/suppliers/${n.supplier.id}`}>{n.supplier.name}</Link> : n.supplier.name) : originalSupplier ? `${originalSupplier} (unmapped)` : "Unattributed / internal" },
+                  { label: "Part", value: n.internalPart ? (isInternal ? <Link className="text-accent hover:underline" href={`/products/${n.internalPart.id}`}>{n.internalPart.partNumber}</Link> : n.internalPart.partNumber) : originalPart ? `${originalPart} (unmapped)` : "Unresolved" },
                   { label: "Supplier part", value: n.supplierPart?.supplierPartNumber },
                   { label: "Site", value: n.site ? `${n.site.siteCode} ${n.site.name}` : null },
                   { label: "Date identified", value: formatDate(n.dateIdentified) },
@@ -224,7 +229,8 @@ export default function NcrPage() {
           </div>
         </div>
         <div className="min-w-0">
-          <RecordPanel entityType="NCR" entityId={id} />
+          <RecordPanel entityType="NCR" entityId={id} canAttach={can("ncr:write") && !["DISPOSITIONED","CLOSED","CANCELLED"].includes(n.status)} />
+          {isInternal && <NcrReportPanel id={id} />}
         </div>
       </div>
     </>

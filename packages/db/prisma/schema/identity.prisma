@@ -66,12 +66,15 @@ model Organization {
 }
 
 model User {
+  assignedIncomingInspections IncomingInspection[] @relation("IncomingAssignee")
+  createdIncomingInspections IncomingInspection[] @relation("IncomingCreator")
+  completedIncomingInspections IncomingInspection[] @relation("IncomingCompleter")
   id                 String     @id @default(uuid(7)) @db.Char(36)
   email              String     @unique @db.VarChar(254)
   displayName        String     @db.VarChar(160)
   userType           UserType
   status             UserStatus @default(ACTIVE)
-  /// Argon2id hash. Null for invited users who have not set a password, or for federated identities.
+  /// Argon2id, or imported bcrypt upgraded after a successful local login. Never serialize this field.
   passwordHash       String?    @db.VarChar(255)
   passwordChangedAt  DateTime?  @db.DateTime(3)
   timezone           String     @default("UTC") @db.VarChar(64)

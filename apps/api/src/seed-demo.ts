@@ -379,7 +379,7 @@ async function seedScenario(prisma: PrismaClient, team: Team) {
   await team.sourcing.post(`/sourcing-projects/${b.id}/submit`, { expectedVersion: b.version });
 
   log("NCR with concession, and NCR with an issued SCAR");
-  const ncrBase = { dateIdentified: isoDay(-2), source: "INCOMING_INSPECTION", supplierProductId: approved.supplierProductId, quantityAffected: 12, quantityInspected: 50, severity: "MAJOR" };
+  const ncrBase = { dateIdentified: isoDay(-2), source: "OTHER", supplierProductId: approved.supplierProductId, quantityAffected: 12, quantityInspected: 50, severity: "MAJOR" };
   const ncr1 = await team.quality.post<{ id: string; version: number }>("/ncrs", { ...ncrBase, title: "Nameplate missing company part number", lotNumber: "APX-26-1103", defectDescription: "12 turbochargers received without the TC-4410-C marking on the nameplate", expectedSpecification: "Nameplate shows AT-880-C1 and TC-4410-C", actualCondition: "Nameplate shows AT-880-C1 only", severity: "MINOR", supplierVisible: true, internalNotes: "Engineering confirms no functional impact." });
   await team.quality.post(`/ncrs/${ncr1.id}/containment`, { expectedVersion: ncr1.version, containmentAction: "Lot segregated at receiving", completed: true });
   const concession = await team.quality.post<{ id: string; version: number }>("/deviations", { type: "CONCESSION", title: "Accept lot APX-26-1103 without customer marking", ncrId: ncr1.id, description: "Accept 12 turbochargers; add adhesive label with TC-4410-C at receiving", justification: "Marking is for traceability only; label provides equivalent identification", quantityLimit: 12, lotNumbers: "APX-26-1103" });

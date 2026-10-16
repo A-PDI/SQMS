@@ -4,3 +4,4 @@ export * from "./scanner";
 export * from "./mailer";
 export * from "./queues";
 export * from "./notifications";
+export * from "./injector-sheet";

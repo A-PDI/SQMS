@@ -39,6 +39,18 @@ export const envSchema = z
     LOGIN_LOCKOUT_MINUTES: z.coerce.number().int().positive().default(15),
     LOGIN_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
     API_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(600),
+    /** Live bench reads remain disabled during this project. Test-safe mode rejects the operational endpoint. */
+    CARBONZAPP_MODE: z.enum(["disabled", "recorded", "test-safe", "live"]).default("disabled"),
+    CARBONZAPP_TEST_URL: z.string().url().optional(),
+    CARBONZAPP_API_KEY: z.string().optional(),
+    CARBONZAPP_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(30000),
+    INJECTOR_SHEET_MODE: z.enum(["disabled", "test-sink", "google"]).default("disabled"),
+    INJECTOR_SHEET_TIMEZONE: z.string().default("America/Denver").refine(v => { try { new Intl.DateTimeFormat("en", { timeZone: v }); return true; } catch { return false; } }, "Use an IANA time zone"),
+    INJECTOR_SHEET_DAILY_TIME: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).default("00:05"),
+    GOOGLE_SHEET_ID: z.string().regex(/^[a-zA-Z0-9_-]+$/).optional(),
+    GOOGLE_SHEET_TAB: z.string().max(100).default("Sheet1"),
+    GOOGLE_SERVICE_ACCOUNT_EMAIL: z.string().email().optional(),
+    GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: z.string().optional(),
 
     /** Phase 1 hard gate: external (supplier) logins and portal APIs are disabled unless explicitly enabled. */
     SUPPLIER_PORTAL_ENABLED: bool(false),
@@ -74,6 +86,9 @@ export const envSchema = z
     SWAGGER_ENABLED: bool(true),
   })
   .superRefine((env, ctx) => {
+    if (env.INJECTOR_SHEET_MODE === "google" && (env.NODE_ENV !== "production" || !env.GOOGLE_SHEET_ID || !env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY)) ctx.addIssue({ code: "custom", path: ["INJECTOR_SHEET_MODE"], message: "Google delivery requires an explicitly configured production service account and spreadsheet; development/test use test-sink" });
+    if (env.CARBONZAPP_MODE === "live" && env.NODE_ENV !== "production") ctx.addIssue({ code: "custom", path: ["CARBONZAPP_MODE"], message: "Live CarbonZapp access is not permitted in development/test" });
+    if (env.CARBONZAPP_MODE === "test-safe" && (!env.CARBONZAPP_TEST_URL || new URL(env.CARBONZAPP_TEST_URL).hostname === "cloudx.carbonzapp.com")) ctx.addIssue({ code: "custom", path: ["CARBONZAPP_TEST_URL"], message: "Test-safe mode requires a separately configured non-operational recording endpoint" });
     if (env.NODE_ENV === "production") {
       if (!env.COOKIE_SECURE) ctx.addIssue({ code: "custom", path: ["COOKIE_SECURE"], message: "COOKIE_SECURE must be true in production" });
       if (env.SCANNER_MODE !== "clamav") ctx.addIssue({ code: "custom", path: ["SCANNER_MODE"], message: "SCANNER_MODE must be clamav in production" });

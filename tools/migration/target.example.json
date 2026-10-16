@@ -1,0 +1,11 @@
+{
+  "purpose": "disposable-qms-migration",
+  "datasetId": "repository-seed-fixture",
+  "sourceSystem": "PDI_QMS_FIXTURE",
+  "databaseHost": "127.0.0.1",
+  "databaseName": "sqms_unified_test",
+  "storageEndpoint": "http://127.0.0.1:9000",
+  "storageBucket": "sqms-test-files",
+  "redisHost": "127.0.0.1",
+  "redisDatabase": 1
+}

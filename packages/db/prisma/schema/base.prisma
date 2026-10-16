@@ -17,6 +17,10 @@ datasource db {
 
 /// Entity types used by polymorphic links (document links, comments, activity, tasks, attachments).
 enum EntityType {
+  INCOMING_INSPECTION
+  INSPECTION_PLAN
+  INJECTOR_TEST
+  INJECTOR_REPAIR
   ORGANIZATION
   USER
   SUPPLIER

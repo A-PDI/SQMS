@@ -1,3 +1,4 @@
+import { AuthorizeInService } from "../../common/auth/decorators";
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from "@nestjs/common";
 import { ApiOperation, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
 import { IsOptional, IsString, Matches, MaxLength } from "class-validator";
@@ -27,6 +28,7 @@ class ActivityQuery extends PageQueryDto {}
 @ApiTags("tasks")
 @Controller("tasks")
 @AudienceScope("any")
+@AuthorizeInService()
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
@@ -61,6 +63,7 @@ export class TasksController {
 @ApiTags("comments")
 @Controller("comments")
 @AudienceScope("any")
+@AuthorizeInService()
 export class CommentsController {
   constructor(private readonly collab: CollaborationService) {}
 
@@ -90,6 +93,7 @@ export class CommentsController {
 @ApiTags("activity")
 @Controller("activity")
 @AudienceScope("any")
+@AuthorizeInService()
 export class ActivityController {
   constructor(private readonly collab: CollaborationService) {}
 
@@ -103,6 +107,7 @@ export class ActivityController {
 @ApiTags("notifications")
 @Controller("notifications")
 @AudienceScope("any")
+@AuthorizeInService()
 export class NotificationsController {
   constructor(private readonly collab: CollaborationService) {}
 
@@ -142,6 +147,7 @@ export class NotificationsController {
 @ApiTags("saved-views")
 @Controller("saved-views")
 @AudienceScope("any")
+@AuthorizeInService()
 export class SavedViewsController {
   constructor(private readonly collab: CollaborationService) {}
 
@@ -175,6 +181,7 @@ class DirectoryQuery {
 /** Minimal internal user directory for people pickers (no administrative details). */
 @ApiTags("directory")
 @Controller("directory")
+@AuthorizeInService()
 export class DirectoryController {
   constructor(private readonly db: DbService) {}
 

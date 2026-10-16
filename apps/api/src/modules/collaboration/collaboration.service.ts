@@ -40,7 +40,7 @@ export class CollaborationService {
     const visibility = scope.isInternal ? dto.visibility ?? "INTERNAL" : "SUPPLIER";
     if (!scope.isInternal && dto.visibility === "INTERNAL") throw new ForbiddenError("Supplier users cannot post internal comments");
     if (visibility === "INTERNAL" && !actor.permissions.has("comment:internal")) throw new ForbiddenError("Posting internal comments requires comment:internal");
-    if (visibility === "SUPPLIER" && !ref.supplierVisible && ref.supplierId === null) throw new BusinessRuleError("This record is not shared with suppliers; use an internal comment");
+    if (visibility === "SUPPLIER" && !ref.supplierVisible) throw new BusinessRuleError("This record is not shared with suppliers; use an internal comment");
     if (dto.parentId) {
       const parent = await this.db.client.comment.findFirst({ where: { id: dto.parentId, entityType: dto.entityType, entityId: dto.entityId, deletedAt: null } });
       if (!parent || (parent.visibility === "INTERNAL" && !this.canSeeInternal(actor))) throw new NotFoundError("Parent comment");

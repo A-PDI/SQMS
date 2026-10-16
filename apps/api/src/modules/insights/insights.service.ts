@@ -287,7 +287,7 @@ export class InsightsService {
       this.db.client.deviation.findMany({ where: { status: { in: ["SUBMITTED", "APPROVED"] }, ...supplier }, include: { supplier: { select: { name: true } } }, take: 5000 }),
     ]);
     const rows = [
-      ...ncrs.map((n) => ({ id: n.id, kind: "NCR", number: n.number, title: n.title, supplier: n.supplier.name, severity: n.severity, status: n.status, opened: iso(n.dateIdentified), ageDays: ageDays(n.createdAt), due: null as string | null, overdue: false, owner: n.owner.displayName })),
+      ...ncrs.map((n) => ({ id: n.id, kind: "NCR", number: n.number, title: n.title, supplier: n.supplier?.name ?? "Unattributed", severity: n.severity, status: n.status, opened: iso(n.dateIdentified), ageDays: ageDays(n.createdAt), due: null as string | null, overdue: false, owner: n.owner?.displayName ?? null })),
       ...scars.map((s) => ({ id: s.id, kind: "SCAR", number: s.number, title: s.title, supplier: s.supplier.name, severity: s.severity, status: s.status, opened: iso(s.issuedAt ?? s.createdAt), ageDays: ageDays(s.issuedAt ?? s.createdAt), due: iso(s.responseDueDate), overdue: ["ISSUED", "RESPONSE_REJECTED"].includes(s.status) && s.responseDueDate < today, owner: null })),
       ...devs.map((d) => ({ id: d.id, kind: d.type, number: d.number, title: d.title, supplier: d.supplier.name, severity: null, status: d.status, opened: iso(d.createdAt), ageDays: ageDays(d.createdAt), due: iso(d.endDate), overdue: false, owner: null })),
     ].sort((a, b) => b.ageDays - a.ageDays);
@@ -323,7 +323,7 @@ export class InsightsService {
       this.db.client.changeRequest.groupBy({ by: ["supplierId"], where: { supplierId: { in: ids }, createdAt: { gte: since } }, _count: { _all: true } }),
       this.db.client.productApproval.groupBy({ by: ["supplierId"], where: { supplierId: { in: ids }, status: "ACTIVE" }, _count: { _all: true } }),
     ]);
-    const get = (rows: { supplierId: string; _count: { _all: number } }[], id: string) => rows.find((r) => r.supplierId === id)?._count._all ?? 0;
+    const get = (rows: { supplierId: string | null; _count: { _all: number } }[], id: string) => rows.find((r) => r.supplierId === id)?._count._all ?? 0;
     return {
       columns: [
         { key: "supplierNumber", header: "Supplier no." },
@@ -419,6 +419,9 @@ export class InsightsService {
     add("ncr", has("ncr:read"), async () => (await items(this.ncrs.list(actor, page as never))).map((x) => ({ type: "ncr", id: String(x.id), title: `${x.number} ${x.title}`, subtitle: String(x.severity), status: String(x.status), link: `/quality/ncrs/${x.id}` })));
     add("scar", has("scar:read"), async () => (await items(this.scars.list(actor, page as never))).map((x) => ({ type: "scar", id: String(x.id), title: `${x.number} ${x.title}`, status: String(x.status), link: `/quality/scars/${x.id}` })));
     add("deviation", has("deviation:read"), async () => (await items(this.deviations.list(actor, page as never))).map((x) => ({ type: "deviation", id: String(x.id), title: `${x.number} ${x.title}`, subtitle: String(x.type), status: String(x.status), link: `/quality/deviations/${x.id}` })));
+    add("incoming-inspection", has("inspection:read") && scope.isInternal, async () => (await this.db.client.incomingInspection.findMany({ where: { OR: [{ number: { contains: term } }, { originalPartNumber: { contains: term } }, { items: { some: { serialNumber: { contains: term } } } }] }, take: limit, select: { id: true, number: true, originalPartNumber: true, status: true } })).map(r => ({ type: "incoming-inspection", id: r.id, title: r.number, subtitle: r.originalPartNumber, status: r.status, link: `/incoming/${r.id}` })));
+    add("injector-test", has("injector:read") && scope.isInternal, async () => (await this.db.client.injectorTest.findMany({ where: { OR: [{ partNumber: { contains: term } }, { serialNumber: { contains: term } }] }, take: limit, select: { id: true, partNumber: true, serialNumber: true, outcome: true } })).map(r => ({ type: "injector-test", id: r.id, title: r.serialNumber ?? "Unknown serial", subtitle: r.partNumber, status: r.outcome, link: `/injectors/${r.id}` })));
+    add("injector-repair", has("injector:read") && scope.isInternal, async () => (await this.db.client.injectorRepairCase.findMany({ where: { OR: [{ partNumber: { contains: term } }, { serialNumber: { contains: term } }] }, take: limit, select: { id: true, partNumber: true, serialNumber: true, status: true } })).map(r => ({ type: "injector-repair", id: r.id, title: r.serialNumber, subtitle: r.partNumber, status: r.status, link: `/repairs/${r.id}` })));
     const results = (await Promise.all(tasks)).flat();
     return { q: term, total: results.length, results };
   }

@@ -48,7 +48,7 @@ test.describe.serial("Pathway C turbocharger with ceramic coating, then a suppli
     await page.getByRole("button", { name: "Continue" }).click();
 
     // 2. Supplier & site: an approved supplier from the demo data
-    await pick(page, "Search supplier", "Apex", /Apex Turbo Systems/);
+    await pick(page, "Supplier", "Apex", /Apex Turbo Systems/);
     const siteValue = await page.locator("#site option", { hasText: "DAY" }).getAttribute("value");
     await page.locator("#site").selectOption(siteValue!);
     await page.getByRole("button", { name: "Continue" }).click();

@@ -1,3 +1,4 @@
+import { AuthorizeInService } from "../../common/auth/decorators";
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
 import type { WorkflowSubjectType } from "@sqms/db";
@@ -81,6 +82,7 @@ export class WorkflowController {
   }
 
   @Get("history")
+  @AuthorizeInService()
   @ApiOperation({ summary: "Complete approval history of a record (who approved what, when, and which revision)" })
   async history(@CurrentActor() actor: Actor, @Query() q: HistoryQuery) {
     await this.access.assertReadable(actor, SUBJECT_ENTITY[q.subjectType], q.subjectId);

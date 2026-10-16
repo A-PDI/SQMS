@@ -7,6 +7,10 @@ export const PUBLIC_KEY = "sqms:public";
 export const PERMISSIONS_KEY = "sqms:permissions";
 export const AUDIENCE_KEY = "sqms:audience";
 export const ANY_PERMISSIONS_KEY = "sqms:any-permissions";
+export const SERVICE_AUTHORIZED_KEY = "sqms:service-authorized";
+
+/** Explicit exception for self-service or record-scoped endpoints enforcing authorization in their service. */
+export const AuthorizeInService = () => SetMetadata(SERVICE_AUTHORIZED_KEY, true);
 
 /** Endpoint does not require an authenticated session. */
 export const Public = () => SetMetadata(PUBLIC_KEY, true);

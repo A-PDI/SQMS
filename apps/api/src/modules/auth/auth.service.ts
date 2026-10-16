@@ -90,7 +90,7 @@ export class AuthService {
       roles: actor.roles,
       permissions: [...actor.permissions].sort(),
       csrfToken: csrfTokenFor(this.env.CSRF_SECRET, actor.sessionId),
-      features: { supplierPortal: this.env.SUPPLIER_PORTAL_ENABLED },
+      features: { supplierPortal: this.env.SUPPLIER_PORTAL_ENABLED, carbonZappMode: this.env.CARBONZAPP_MODE, injectorSheetMode: this.env.INJECTOR_SHEET_MODE },
       branding,
     };
   }

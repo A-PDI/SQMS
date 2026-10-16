@@ -7,6 +7,7 @@ import { PageQueryDto } from "../../common/http/pagination";
 
 /** Entity types that support comments, activity timelines and tasks (resolved by EntityAccessService). */
 export const COLLAB_ENTITY_TYPES = [
+  "INCOMING_INSPECTION", "INSPECTION_PLAN", "INJECTOR_TEST", "INJECTOR_REPAIR",
   "SUPPLIER", "SUPPLIER_SITE", "INTERNAL_PART", "SUPPLIER_PART", "SUPPLIER_PRODUCT", "PRODUCT_CONFIGURATION", "CONFIGURATION_REVISION", "SOURCING_PROJECT",
   "DOCUMENT", "DOCUMENT_REVISION", "SUPPLIER_QUALIFICATION", "PRODUCT_QUALIFICATION", "CHANGE_REQUEST", "DEVIATION", "NCR", "SCAR", "FIRST_ARTICLE_INSPECTION",
 ] as const;

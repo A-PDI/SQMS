@@ -1,0 +1,16 @@
+{
+  "name": "@sqms/legacy-domain",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "node --check index.js",
+    "typecheck": "node --check index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "pdfkit": "0.15.2",
+    "exceljs": "4.4.0"
+  }
+}

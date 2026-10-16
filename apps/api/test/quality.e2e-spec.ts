@@ -22,7 +22,7 @@ describe("Nonconformance, deviations and corrective actions", () => {
   const ncrBody = (extra: Record<string, unknown> = {}) => ({
     title: "Housing bore oversize",
     dateIdentified: "2026-10-12",
-    source: "INCOMING_INSPECTION",
+    source: "OTHER", // Manual fixture; linked incoming origins are covered by operational workflow tests.
     supplierProductId,
     lotNumber: "LOT-4471",
     quantityAffected: 40,

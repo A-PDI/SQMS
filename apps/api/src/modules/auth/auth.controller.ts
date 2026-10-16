@@ -1,3 +1,4 @@
+import { AuthorizeInService } from "../../common/auth/decorators";
 import { Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
@@ -12,6 +13,7 @@ import { AuthService } from "./auth.service";
 @ApiTags("auth")
 @Controller("auth")
 @AudienceScope("any")
+@AuthorizeInService()
 export class AuthController {
   constructor(
     private readonly auth: AuthService,

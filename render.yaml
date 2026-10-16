@@ -17,6 +17,10 @@ envVarGroups:
         value: "true"
       - key: CSRF_SECRET
         generateValue: true
+      - key: CARBONZAPP_MODE
+        value: disabled
+      - key: INJECTOR_SHEET_MODE
+        value: disabled
       - key: SUPPLIER_PORTAL_ENABLED
         value: "false"
       - key: SWAGGER_ENABLED
