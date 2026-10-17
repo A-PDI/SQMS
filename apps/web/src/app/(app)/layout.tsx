@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { QmsShell } from "@/qms-runtime/entry";
+import { AppShell } from "@/components/shell/app-shell";
 import { PageLoading } from "@/components/ui/feedback";
 import { SessionProvider } from "@/lib/session";
 
@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       }
     >
-      <QmsShell>{children}</QmsShell>
+      <AppShell>{children}</AppShell>
     </SessionProvider>
   );
 }

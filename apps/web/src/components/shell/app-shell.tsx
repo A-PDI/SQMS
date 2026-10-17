@@ -2,233 +2,453 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertOctagon,
-  BarChart3,
   Bell,
-  Boxes,
-  CheckSquare,
-  ClipboardCheck,
-  FileStack,
-  FileText,
-  FolderKanban,
-  GitPullRequestArrow,
-  LayoutDashboard,
-  Library,
-  ListChecks,
+  ChevronDown,
+  KeyRound,
   LogOut,
   Menu,
   Search,
-  Settings,
-  ShieldCheck,
-  Stamp,
   User,
-  Wrench,
-  Building2,
-  ScrollText,
-  type LucideIcon,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog } from "radix-ui";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type AnchorHTMLAttributes,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { presentUser } from "@/qms/lib/api";
+import { setSession } from "@/qms/lib/auth";
+import ChangePasswordModal from "@/qms-runtime/change-password";
+import { isOperationalPath } from "@/qms-runtime/routes";
+import { activeNavigation, navigationFor } from "./navigation";
 
-interface NavItem {
+export interface ShellRouting {
+  pathname: string;
+  navigate: (href: string) => void;
+}
+
+function ShellLink({
+  href,
+  routing,
+  children,
+  onNavigate,
+  ...props
+}: {
   href: string;
-  label: string;
-  icon: LucideIcon;
-  perms?: string[];
-  anyPerms?: string[];
-  internal?: boolean;
-  external?: boolean;
-}
-
-const SECTIONS: { title?: string; items: NavItem[] }[] = [
-  {
-    items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard, perms: ["report:read"], internal: true },
-      { href: "/portal", label: "Supplier portal", icon: Building2, external: true },
-      { href: "/approvals", label: "Approvals", icon: Stamp, perms: ["task:read"], internal: true },
-      { href: "/tasks", label: "Tasks", icon: CheckSquare, perms: ["task:read"] },
-    ],
-  },
-  {
-    title: "Inspection & test lab",
-    items: [
-      { href: "/incoming", label: "Incoming inspection", icon: ClipboardCheck, perms: ["inspection:read"], internal: true },
-      { href: "/inspection-plans", label: "Inspection plans", icon: ListChecks, perms: ["inspection_plan:manage"], internal: true },
-      { href: "/injectors", label: "Injector tests & reports", icon: BarChart3, perms: ["injector:read"], internal: true },
-      { href: "/repairs", label: "Injector repairs", icon: Wrench, perms: ["injector:read"], internal: true },
-      { href: "/drawings", label: "Drawings", icon: FileText, perms: ["document:read"], internal: true },
-    ],
-  },
-  {
-    title: "Sourcing",
-    items: [
-      { href: "/projects", label: "Sourcing projects", icon: FolderKanban, perms: ["project:read"], internal: true },
-      { href: "/suppliers", label: "Suppliers", icon: Building2, perms: ["supplier:read"], internal: true },
-      { href: "/products", label: "Products", icon: Boxes, perms: ["product:read"], internal: true },
-      { href: "/qualifications", label: "Qualifications", icon: ClipboardCheck, perms: ["qualification:read"], internal: true },
-    ],
-  },
-  {
-    title: "Documents",
-    items: [
-      { href: "/documents", label: "Document records", icon: FileText, perms: ["document:read"] },
-      { href: "/document-types", label: "Document library", icon: Library, perms: ["document:read"], internal: true },
-    ],
-  },
-  {
-    title: "Change & quality",
-    items: [
-      { href: "/changes", label: "Change requests", icon: GitPullRequestArrow, perms: ["change:read"] },
-      { href: "/quality/signals", label: "Quality signals", icon: AlertOctagon, perms: ["ncr:read"], internal: true },
-      { href: "/quality/ncrs", label: "Nonconformances", icon: AlertOctagon, perms: ["ncr:read"] },
-      { href: "/quality/scars", label: "Corrective actions", icon: Wrench, perms: ["scar:read"] },
-      { href: "/quality/deviations", label: "Deviations", icon: ListChecks, perms: ["deviation:read"] },
-    ],
-  },
-  {
-    title: "Insights",
-    items: [
-      { href: "/reports", label: "Reports", icon: BarChart3, perms: ["report:read"], internal: true },
-      { href: "/admin/audit", label: "Audit trail", icon: ScrollText, perms: ["audit:read"], internal: true },
-    ],
-  },
-  {
-    title: "Administration",
-    items: [{ href: "/admin", label: "Administration", icon: Settings, anyPerms: ["admin:users", "admin:roles", "admin:settings", "admin:workflows", "admin:policies"], internal: true }],
-  },
-];
-
-function isActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
-  if (href === "/admin") return pathname === "/admin" || (pathname.startsWith("/admin/") && !pathname.startsWith("/admin/audit"));
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-export function AppShell({ children }: { children: ReactNode }) {
-  const { me, can, canAny, isInternal, logout } = useSession();
-  const pathname = usePathname();
-  const router = useRouter();
-  const [q, setQ] = useState("");
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const unread = useQuery({ queryKey: ["notifications", "unread"], queryFn: () => api<{ unread: number }>("/notifications/unread-count"), refetchInterval: 60_000 });
-  const brand = me.branding?.shortName ?? "PDI QMS";
-
-  const visible = (i: NavItem) => (i.internal ? isInternal : true) && (i.external ? !isInternal : true) && (!i.perms || can(...i.perms)) && (!i.anyPerms || canAny(...i.anyPerms));
-
-  const nav = (
-    <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-3" aria-label="Main">
-      {SECTIONS.map((s, idx) => {
-        const items = s.items.filter(visible);
-        if (!items.length) return null;
-        return (
-          <div key={idx}>
-            {s.title && <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-white/50">{s.title}</p>}
-            <ul className="space-y-0.5">
-              {items.map((i) => (
-                <li key={i.href}>
-                  <Link
-                    href={i.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={cn("flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white", isActive(pathname, i.href) && "bg-white/15 font-medium text-white")}
-                    aria-current={isActive(pathname, i.href) ? "page" : undefined}
-                  >
-                    <i.icon className="size-4" />
-                    {i.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      })}
-    </nav>
+  routing?: ShellRouting;
+  children: ReactNode;
+  onNavigate?: () => void;
+} & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href">) {
+  if (!routing && !isOperationalPath(href))
+    return (
+      <Link href={href} onClick={onNavigate} {...props}>
+        {children}
+      </Link>
+    );
+  function click(event: MouseEvent<HTMLAnchorElement>) {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    onNavigate?.();
+    if (routing) {
+      event.preventDefault();
+      routing.navigate(href);
+    }
+  }
+  return (
+    <a href={href} onClick={click} {...props}>
+      {children}
+    </a>
   );
+}
+
+/** Shared SQMS organization with the original QMS visual language. */
+export function AppShell({
+  children,
+  routing,
+}: {
+  children: ReactNode;
+  routing?: ShellRouting;
+}) {
+  const { me, isInternal, logout } = useSession();
+  const nextPathname = usePathname();
+  const router = useRouter();
+  const pathname = routing?.pathname ?? nextPathname;
+  const sections = navigationFor(me);
+  const active = activeNavigation(sections, pathname);
+  const [expanded, setExpanded] = useState(
+    () => new Set(["home", active?.section.id ?? "home"]),
+  );
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [q, setQ] = useState("");
+  const contentRef = useRef<HTMLElement>(null);
+  const unread = useQuery({
+    queryKey: ["notifications", "unread"],
+    queryFn: () => api<{ unread: number }>("/notifications/unread-count"),
+    refetchInterval: 60_000,
+  });
+
+  useEffect(() => {
+    setSession(presentUser(me), me.csrfToken);
+  }, [me]);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobileOpen(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+  useEffect(() => {
+    setMobileOpen(false);
+    setExpanded(
+      (previous) => new Set([...previous, active?.section.id ?? "home"]),
+    );
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [pathname, active?.section.id]);
+
+  function navigate(href: string) {
+    setMobileOpen(false);
+    if (routing) routing.navigate(href);
+    else if (isOperationalPath(href)) window.location.assign(href);
+    else router.push(href);
+  }
+  async function signOut() {
+    setSigningOut(true);
+    setSession(null, null);
+    try {
+      await logout();
+    } finally {
+      window.location.assign("/login");
+    }
+  }
+  function toggle(id: string) {
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function brand(mobile = false) {
+    return (
+      <div className="flex h-24 shrink-0 items-center gap-3 border-b border-white/10 px-5">
+        <ShellLink
+          href={isInternal ? "/" : "/portal"}
+          routing={routing}
+          onNavigate={() => setMobileOpen(false)}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber"
+          aria-label="PDI Quality Management home"
+        >
+          <img
+            src="/pdi-logo.png"
+            alt="PDI"
+            className="h-11 w-14 shrink-0 object-contain"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-wide text-white">
+              {me.branding?.shortName ?? "PDI QMS"}
+            </p>
+            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-pdi-steel">
+              Quality Management
+            </p>
+          </div>
+        </ShellLink>
+        {mobile && (
+          <Dialog.Close
+            className="rounded-lg p-2 text-pdi-steel hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber"
+            aria-label="Close navigation"
+          >
+            <X size={19} />
+          </Dialog.Close>
+        )}
+      </div>
+    );
+  }
+
+  function navigation(prefix: string) {
+    return (
+      <nav
+        className="min-h-0 flex-1 overflow-y-auto px-3 py-4"
+        aria-label="Main navigation"
+      >
+        <div className="space-y-1">
+          {sections.map((section) => {
+            const open = expanded.has(section.id);
+            const current = active?.section.id === section.id;
+            const Icon = section.icon;
+            return (
+              <section key={section.id}>
+                <button
+                  type="button"
+                  onClick={() => toggle(section.id)}
+                  aria-expanded={open}
+                  aria-controls={`${prefix}-${section.id}`}
+                  className={cn(
+                    "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber",
+                    current
+                      ? "text-pdi-amber-light"
+                      : "text-pdi-steel hover:text-white",
+                  )}
+                >
+                  <Icon size={17} className="shrink-0" aria-hidden />
+                  <span className="flex-1">{section.title}</span>
+                  <ChevronDown
+                    size={14}
+                    className={cn(
+                      "shrink-0 transition-transform",
+                      !open && "-rotate-90",
+                    )}
+                    aria-hidden
+                  />
+                </button>
+                <ul
+                  id={`${prefix}-${section.id}`}
+                  hidden={!open}
+                  className="mb-3 ml-5 mt-1 space-y-0.5 border-l border-white/10 pl-2"
+                >
+                  {section.items.map((item) => {
+                    const selected = active?.item.href === item.href;
+                    const ItemIcon = item.icon;
+                    return (
+                      <li key={item.href}>
+                        <ShellLink
+                          href={item.href}
+                          routing={routing}
+                          onNavigate={() => setMobileOpen(false)}
+                          aria-current={selected ? "page" : undefined}
+                          className={cn(
+                            "flex min-h-10 items-center gap-2.5 rounded-r-lg border-l-2 px-3 py-2 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber",
+                            selected
+                              ? "border-pdi-amber bg-white/10 font-semibold text-white"
+                              : "border-transparent text-pdi-steel hover:bg-white/5 hover:text-white",
+                          )}
+                        >
+                          <ItemIcon
+                            size={15}
+                            className={cn(
+                              "shrink-0",
+                              selected && "text-pdi-amber-light",
+                            )}
+                            aria-hidden
+                          />
+                          {item.label}
+                        </ShellLink>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+      </nav>
+    );
+  }
+
+  function footer() {
+    return (
+      <div className="shrink-0 border-t border-white/10 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+        <p
+          className="truncate px-2 text-[11px] text-pdi-steel/70"
+          title={me.organization.name}
+        >
+          {me.organization.name}
+        </p>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          disabled={signingOut}
+          className="mt-1 flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-sm text-pdi-steel transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber disabled:opacity-50"
+        >
+          <LogOut size={16} aria-hidden />
+          {signingOut ? "Signing out…" : "Sign Out"}
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className={cn("fixed inset-y-0 left-0 z-30 flex w-60 flex-col bg-primary text-primary-foreground transition-transform lg:translate-x-0", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
-        <Link href="/" className="flex h-14 items-center gap-2 border-b border-white/10 px-4">
-          <span className="flex size-7 items-center justify-center rounded bg-white/15 text-xs font-bold">{brand.slice(0, 2)}</span>
-          <span className="truncate text-sm font-semibold">{me.branding?.productName ?? "PDI Quality Management"}</span>
-        </Link>
-        {nav}
-        <div className="border-t border-white/10 px-4 py-2 text-[11px] text-white/50">
-          <ShieldCheck className="mr-1 inline size-3" />
-          {me.organization.name}
-          {!me.features.supplierPortal && isInternal && <span className="block">Supplier portal: disabled</span>}
-        </div>
-      </aside>
-      {mobileOpen && <div className="fixed inset-0 z-20 bg-black/30 lg:hidden" onClick={() => setMobileOpen(false)} />}
-      <div className="flex min-w-0 flex-1 flex-col lg:pl-60">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-surface px-4">
-          <button className="rounded p-1.5 hover:bg-muted lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open navigation">
-            <Menu className="size-5" />
-          </button>
-          <form
-            className="relative max-w-xl flex-1"
-            role="search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (q.trim().length >= 2) router.push(`/search?q=${encodeURIComponent(q.trim())}`);
-            }}
-          >
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search suppliers, parts, projects, documents, NCRs..."
-              className="h-9 w-full rounded-md border bg-muted/50 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:bg-surface"
-              aria-label="Global search"
-            />
-          </form>
-          <div className="ml-auto flex items-center gap-1">
-            <Link href="/notifications" className="relative rounded-md p-2 hover:bg-muted" aria-label={`Notifications${unread.data?.unread ? `, ${unread.data.unread} unread` : ""}`}>
-              <Bell className="size-5" />
-              {!!unread.data?.unread && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] font-semibold leading-4 text-white">{unread.data.unread > 99 ? "99+" : unread.data.unread}</span>}
-            </Link>
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-muted" aria-label="User menu">
-                <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                  {me.displayName
-                    .split(/\s+/)
-                    .map((p) => p[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </span>
-                <span className="hidden text-left text-xs leading-tight sm:block">
-                  <span className="block font-medium">{me.displayName}</span>
-                  <span className="block text-muted-foreground">{me.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}</span>
-                </span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuLabel>{me.email}</DropdownMenuLabel>
-                <DropdownMenuItem onSelect={() => router.push("/profile")}>
-                  <User /> Profile & security
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => router.push("/notifications")}>
-                  <Bell /> Notifications
-                </DropdownMenuItem>
-                {isInternal && (
-                  <DropdownMenuItem onSelect={() => router.push("/document-types")}>
-                    <FileStack /> Document library
-                  </DropdownMenuItem>
+    <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
+      <div className="flex h-dvh min-h-0 overflow-hidden bg-gray-50 print:block print:h-auto print:overflow-visible">
+        <a
+          href="#page-content"
+          className="sr-only z-[70] rounded-lg bg-white p-3 text-pdi-navy focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Skip to content
+        </a>
+        <aside
+          className="hidden w-64 shrink-0 flex-col bg-gradient-to-b from-pdi-navy to-pdi-navy-light shadow-xl lg:flex print:hidden"
+          aria-label="Sidebar"
+        >
+          {brand()}
+          {navigation("desktop")}
+          {footer()}
+        </aside>
+        <div className="flex min-w-0 flex-1 flex-col print:block">
+          <header className="shell-topbar z-20 flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm lg:px-6 print:hidden">
+            <Dialog.Trigger asChild>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-pdi-navy hover:bg-pdi-frost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-navy lg:hidden"
+                aria-label="Open navigation"
+              >
+                <Menu size={21} />
+              </button>
+            </Dialog.Trigger>
+            <div className="hidden min-w-0 lg:block">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                {active?.section.title ?? "Workspace"}
+              </p>
+              <p className="truncate text-sm font-semibold text-pdi-navy">
+                {active?.item.label ?? "PDI Quality Management"}
+              </p>
+            </div>
+            <form
+              className="relative min-w-0 flex-1 lg:ml-6 lg:max-w-md"
+              role="search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (q.trim().length >= 2)
+                  navigate(`/search?q=${encodeURIComponent(q.trim())}`);
+              }}
+            >
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                aria-hidden
+              />
+              <input
+                value={q}
+                onChange={(event) => setQ(event.target.value)}
+                placeholder="Search the QMS…"
+                aria-label="Global search"
+                className="min-h-10 w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-pdi-navy focus:bg-white focus:ring-1 focus:ring-pdi-navy"
+              />
+            </form>
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
+              <ShellLink
+                href="/notifications"
+                routing={routing}
+                className="relative rounded-lg p-2 text-pdi-charcoal hover:bg-pdi-frost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-navy"
+                aria-label={`Notifications${unread.data?.unread ? `, ${unread.data.unread} unread` : ""}`}
+              >
+                <Bell size={20} />
+                {!!unread.data?.unread && (
+                  <span className="absolute right-0 top-0 min-w-4 rounded-full bg-pdi-amber px-1 text-center text-[10px] font-semibold leading-4 text-white">
+                    {unread.data.unread > 99 ? "99+" : unread.data.unread}
+                  </span>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => void logout()}>
-                  <LogOut /> Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
-        <main className="mx-auto w-full max-w-[1400px] flex-1 p-4 lg:p-6">{children}</main>
+              </ShellLink>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex min-h-10 items-center gap-2 rounded-lg p-1 text-pdi-navy hover:bg-pdi-frost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-navy"
+                  aria-label="User menu"
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-pdi-frost text-xs font-semibold">
+                    {me.displayName
+                      .split(/\s+/)
+                      .map((p) => p[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </span>
+                  <span className="hidden max-w-40 truncate text-sm font-medium sm:block">
+                    {me.displayName}
+                  </span>
+                  <ChevronDown size={14} className="hidden sm:block" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuLabel>{me.email}</DropdownMenuLabel>
+                  <DropdownMenuItem onSelect={() => navigate("/profile")}>
+                    <User />
+                    Profile & security
+                  </DropdownMenuItem>
+                  {isInternal && (
+                    <DropdownMenuItem onSelect={() => setShowPassword(true)}>
+                      <KeyRound />
+                      Change password
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onSelect={() => navigate("/notifications")}>
+                    <Bell />
+                    Notifications
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => void signOut()}>
+                    <LogOut />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
+          <main
+            id="page-content"
+            ref={contentRef}
+            tabIndex={-1}
+            className={cn(
+              "shell-content min-h-0 min-w-0 flex-1 overflow-y-auto focus:outline-none print:overflow-visible print:p-0",
+              !routing && "px-4 py-5 lg:px-6 lg:py-6",
+            )}
+          >
+            <div
+              className={cn(
+                "mx-auto w-full print:max-w-none",
+                !routing && "max-w-[1400px]",
+              )}
+            >
+              {children}
+            </div>
+          </main>
+        </div>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-pdi-navy/50 backdrop-blur-sm lg:hidden print:hidden" />
+          <Dialog.Content className="shell-drawer fixed inset-y-0 left-0 z-50 flex w-72 max-w-[calc(100vw-2.5rem)] flex-col bg-gradient-to-b from-pdi-navy to-pdi-navy-light shadow-2xl focus:outline-none lg:hidden print:hidden">
+            <Dialog.Title className="sr-only">Main navigation</Dialog.Title>
+            <Dialog.Description className="sr-only">
+              Choose a workspace or expand a section to see its pages.
+            </Dialog.Description>
+            {brand(true)}
+            {navigation("mobile")}
+            {footer()}
+          </Dialog.Content>
+        </Dialog.Portal>
       </div>
-    </div>
+      {showPassword && (
+        <ChangePasswordModal
+          onClose={(changed: boolean) => {
+            setShowPassword(false);
+            if (changed) toast.success("Password updated");
+          }}
+        />
+      )}
+    </Dialog.Root>
   );
 }
