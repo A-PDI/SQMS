@@ -77,7 +77,7 @@ export class FilesService {
    * hashed (SHA-256) server-side, size-limited per type, checked against its declared extension's signature and
    * placed in QUARANTINED status until the malware scanner reports it clean.
    */
-  async upload(actor: Actor, req: Request): Promise<PublicFile> {
+  async upload(actor: Actor, req: Request, options: { fileField?: string; fields?: Record<string, string> } = {}): Promise<PublicFile> {
     if (!UPLOAD_PERMISSIONS.some((p) => actor.permissions.has(p))) throw new ForbiddenError("You are not permitted to upload files");
     const contentType = req.headers["content-type"] ?? "";
     if (!contentType.toLowerCase().startsWith("multipart/form-data")) throw new BusinessRuleError("Uploads must use multipart/form-data", undefined, "UNSUPPORTED_MEDIA_TYPE");
@@ -93,7 +93,7 @@ export class FilesService {
         reject(new BusinessRuleError("Malformed multipart request"));
         return;
       }
-      const fields: Record<string, string> = {};
+      const fields: Record<string, string> = options.fields ?? {};
       let fileSeen = false;
       let stored: PublicFile | null = null;
       let parserClosed = false;
@@ -121,9 +121,10 @@ export class FilesService {
       };
       bb.on("field", (name, value) => {
         if (name === "description") fields.description = value.slice(0, 500);
+        else if (options.fields) fields[name] = value;
       });
       bb.on("file", (name, stream, info) => {
-        if (name !== "file" || fileSeen) {
+        if (name !== (options.fileField ?? "file") || fileSeen) {
           stream.resume();
           return;
         }

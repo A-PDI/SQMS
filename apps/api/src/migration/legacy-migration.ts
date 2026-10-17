@@ -488,6 +488,7 @@ export class LegacyMigration {
             userType: "INTERNAL",
             status: row.active ? "ACTIVE" : "DISABLED",
             passwordHash: hash,
+            legacyPermissions: row.permissions ? json(parseJson(row.permissions, {})) : Prisma.DbNull,
             createdAt,
             memberships: {
               create: {
@@ -500,6 +501,7 @@ export class LegacyMigration {
             displayName: String(row.name ?? email),
             status: row.active ? "ACTIVE" : "DISABLED",
             passwordHash: hash,
+            legacyPermissions: row.permissions ? json(parseJson(row.permissions, {})) : Prisma.DbNull,
           },
         });
       if (!dry) {
@@ -571,6 +573,7 @@ export class LegacyMigration {
           update: {},
         });
       }
+      if (!dry) await tx.operationalTemplate.upsert({ where: { id: revisionId }, create: { id: revisionId, currentRevisionId: revisionId, active: row.active !== 0 }, update: {} });
       this.revisions.set(sourceId, { id: revisionId, definition });
       return { type: "INSPECTION_PLAN_REVISION", id: revisionId };
     }
@@ -797,6 +800,7 @@ export class LegacyMigration {
         supplierVisible: false,
         closedAt: this.timestamp(intake, table, row, "closed_at"),
         ...(createdAt ? { createdAt } : {}),
+        qmsFields: json({ ...row }),
         legacyException: json({
           sourceId,
           originalDisposition: row.ncr_disposition,
@@ -1234,6 +1238,8 @@ export class LegacyMigration {
               row.section_id,
             ),
             legacySourceId: row.id,
+            ...(table === 'engineering_drawings' ? { kind: 'QMS_DRAWING', version: row.version ?? '', is_current: !!row.is_current, originalPartNumber: row.part_number } : {}),
+            sortOrder: Number(row.sort_order || 0),
             originalVersion: row.version ?? null,
             originalCurrent: row.is_current ?? null,
           }),

@@ -1,11 +1,16 @@
 # Remaining work and release gates
 
+> October 17 correction: QMS-Development is the exact workflow and design reference. The earlier replacement UI is superseded. See [reference preservation](feature-preservation.md) and [source parity](source-parity.md); previous “implemented” labels are code availability, not proof of operator or historical-data parity.
+
+The immediate release task is a walkthrough of every used original workflow against the copied operational database and uploads. Include populated custom/miscellaneous forms, all used inspection types, report/PDF samples, drawing versions, bench full-resync/clear and repair episodes, role restrictions, concurrent edits and performance at operational volume. The source port and synthetic checks do not replace that acceptance.
+
+
 ## External acceptance blockers
 
 | Gate | Current evidence | Required next input/action | Release effect |
 | --- | --- | --- | --- |
 | Copied operational database and matching uploads/drawings | Not supplied; user confirmed copies have not been created | Operational owner supplies a consistent standalone backup, upload manifest/copy, source timezone and backup/restore evidence | Full user/template/custom/NCR/repair/file inventory, complete reconciliation and operational PDF parity remain unverified |
-| SQMS Render test service identity | User does not know the service identifier; no Render connector/service credentials are available in this session | Record the exact gateway/API/worker/database/storage/Redis/scanner service IDs, branch, region, environment and durable disks; verify this is the UI-test deployment | No remote deployment or Render acceptance performed |
+| SQMS Render test service identity | User supplied `https://sqms-gateway.onrender.com` and reports it is running. Platform service IDs are unconfirmed; no Render connector/service credentials are available in this session | Record the exact gateway/API/worker/database/storage/Redis/scanner service IDs, branch, region, environment and durable disks; verify this is the UI-test deployment | This correction has not been deployed remotely or accepted on Render |
 | PDI form register and actual branded templates | Source code/PDI PDF assets are available; the external register/fillable forms are not | Document-control owner confirms code-to-record/upload mapping and drawing classification; compare actual issued forms | No invented mappings or blanket reconstruction of the 37 catalog entries |
 | Historical attribution and identity decisions | Repository fixtures deliberately contain unknown suppliers | Reviewed PO/vendor/account/part/feature/timezone mappings against the real copy | Unknown supplier/history stays labeled and outside supplier-specific metrics |
 | Operator acceptance | Automated fixtures exercise representative workflows | Inspectors, Test Lab, Quality and Engineering execute the matrix on copied history and confirm all forms/outputs used operationally | Complete replacement remains a candidate until accepted |

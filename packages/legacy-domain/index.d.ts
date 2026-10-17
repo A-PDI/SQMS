@@ -48,3 +48,15 @@ export function previousDay(day: string): string;
 export function seedItemSerials(items: any[], lotSerialNo: string): any[];
 
 export function matchesStepCriteria(test: any, criteria: any): boolean;
+
+export function qmsReportWorkbook(report: any): Promise<Buffer>;
+export function qmsReportPdf(report: any, filters: any): Promise<Buffer>;
+export function qmsTemplateWorkbook(templates: any[]): Promise<Buffer>;
+
+export function normaliseCriteria(query: any): any;
+export function matchesInjector(test: any, criteria: any): boolean;
+export function matchedStepLabels(test: any, criteria: any): string[];
+export function stepCatalog(tests: any[]): any[];
+export function sameUnitRows(serials: string[], rows: any[]): any[];
+export function exportFilename(model: any, extension?: string): string;
+export function validateSelection(tests: any[]): any;

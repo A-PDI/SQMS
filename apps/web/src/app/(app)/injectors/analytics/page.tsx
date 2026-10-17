@@ -1,4 +1,2 @@
-import { InjectorAnalytics } from "@/components/operations/injector-extras";
-export default function Page() {
-  return <InjectorAnalytics />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect('/injector-reports'); }

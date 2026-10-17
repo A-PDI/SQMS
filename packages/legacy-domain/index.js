@@ -7,3 +7,5 @@ Object.assign(module.exports, require('./services/partWorkbook'));
 Object.assign(module.exports, require('./services/operationalReports'));
 
 Object.assign(module.exports, require('./services/itemCompletion'));
+
+Object.assign(module.exports, require('./services/qmsReports'));

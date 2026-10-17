@@ -259,7 +259,7 @@ describe("Rejected FAI → approved replacement → recurring production defect"
         itemCount: 1,
         header: {
           po_number: "PO-REC-991",
-          date_received: "2026-10-16",
+          date_received: new Date().toISOString().slice(0, 10),
           lot_serial_no: "L-991",
         },
       }),

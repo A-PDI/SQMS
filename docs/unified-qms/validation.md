@@ -1,5 +1,25 @@
 # Local acceptance evidence
 
+## October 17 reference correction
+
+The original screens supersede the first implementation's replacement editors and shell. See [source parity](source-parity.md), [feature preservation](feature-preservation.md), and [render comparison results](render-comparison.json).
+
+Verified against the corrected code:
+
+- 81 source/style/asset hashes match QMS-Development `9e53417`; five runtime/API boundary files are declared separately.
+- 119 original frontend helper tests pass.
+- 88 legacy-domain tests pass, including the latest injector part mapping.
+- 116 API tests in 18 suites pass on the explicitly disposable `sqms_qms_parity_test` database. This includes the original local-password, template editing/versioning, catalogue, multi-item JSON, assignment, complete/reopen, NCR narrative, reporting and repair/cache contracts, plus upgrade-field restoration and retained-evidence deletion checks.
+- The API and Next.js production builds pass, and the browser-test TypeScript check passes.
+- The original inspection modal → serial/result entry → completion → reload → PDF browser flow passes on a separate fictional stack.
+- The original NCR narrative/photo/caption → save → scanned image → reload flow passes, including navigation to the added Suppliers page and logout back to the original login.
+- The complete Chromium suite passes 9/9 tests against the rebuilt correction: the two original-screen workflows, NCR/8D/SCAR closure, and Pathway C qualification, approval and supplier-change requalification. The local browser URL must match `APP_ORIGINS` (`http://localhost:3000` in this fixture); an initial run using the IP address was rejected by the origin check, then rerun successfully with the configured origin.
+- All 15 migrations apply successfully, including the two correction migrations. Existing imported NCR fields, user page permissions and drawing metadata are restored from retained source snapshots where the new fields are unset. A populated NCR upgrade fixture verifies the original values are readable through the original contract.
+- 22 original-versus-integration screenshot pairs cover 11 screens at desktop and mobile widths with identical empty-list fixtures. 21 are pixel-identical. One mobile native-select text area differs by 939 pixels of 351,000; both use the original source and CSS. No page JavaScript errors occurred. These comparisons do not cover every populated form, dialog or historical record.
+
+No operational database, upload set, real integration transport or operator acceptance was used. These results support review of the correction, not production cutover. Earlier evidence below describes the first implementation's checks and must not be interpreted as proof of original workflow parity.
+
+
 Evidence collected on 16 October 2026 on branch `codex/unified-qms`, based on SQMS `bf9be7f`. The assessed source was independently checked against QMS-Development `6c53d829a5e69ff095975cddc41d419c4b812ada`. The original operational checkout and the separate source checkout remain unchanged. No operational runtime, database, uploaded files, users or deployment were modified.
 
 This is local candidate evidence. No copied operational dataset, confirmed Render service, live test-safe CarbonZapp credentials or PDI form register was supplied. Repository seeds and synthetic records do not establish operational migration or PDF parity.

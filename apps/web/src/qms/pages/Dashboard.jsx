@@ -1,0 +1,596 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
+import { ClipboardList, CheckSquare, AlertTriangle, TrendingUp, PlusCircle, Bell, Clock, Zap, Ruler } from 'lucide-react'
+import api from '../lib/api'
+import { useInspections, useInspectionAlerts, useFireRingEligible } from '../hooks/useInspections'
+import { useNCRs } from '../hooks/useNCRs'
+import { useQualityAlertCount } from '../hooks/useQualityAlerts'
+import { getUser } from '../lib/auth'
+import StatusBadge from '../components/StatusBadge'
+import AddFireRingModal from '../components/inspection/AddFireRingModal'
+import { formatDate } from '../lib/utils'
+import { COMPONENT_TYPE_LABELS, NCR_SEVERITY_COLORS, NCR_SEVERITY_LABELS, NCR_STATUS_COLORS, NCR_STATUS_LABELS } from '../lib/constants'
+
+const METRIC_CONFIGS = [
+  { key: 'total_inspections',    label: 'Total Inspections',    icon: ClipboardList,  bg: 'bg-pdi-navy',   fg: 'text-white', filter: 'all',            filterLabel: 'All Inspections' },
+  { key: 'open_inspections',     label: 'Open Inspections',     icon: ClipboardList,  bg: 'bg-pdi-amber',  fg: 'text-white', filter: 'draft',          filterLabel: 'Open Inspections' },
+  { key: 'completed_this_month', label: 'Completed This Month', icon: CheckSquare,    bg: 'bg-pdi-teal',   fg: 'text-white', filter: 'complete',       filterLabel: 'Completed Inspections' },
+  { key: 'open_ncrs',            label: 'Open NCRs',            icon: AlertTriangle,  bg: 'bg-pdi-red',    fg: 'text-white', filter: 'ncrs',           filterLabel: 'Open NCRs' },
+]
+
+const ADMIN_METRIC_CONFIGS = [
+  { key: 'past_due',       label: 'Past Due',        icon: Clock, bg: 'bg-purple-600', fg: 'text-white', filter: 'past_due',       filterLabel: 'Past Due Inspections' },
+  { key: 'short_duration', label: 'Short Duration',  icon: Zap,   bg: 'bg-orange-500', fg: 'text-white', filter: 'short_duration', filterLabel: 'Short Duration Completions' },
+]
+
+const FIRE_RING_CONFIG = { key: 'fire_ring', label: 'Add Fire Ring', icon: Ruler, bg: 'bg-blue-600', fg: 'text-white', filter: 'fire_ring', filterLabel: 'Add Fire Ring' }
+
+const COMPONENT_COLORS = ['#1D2B4F', '#1A8C80', '#D4943A', '#C0392B', '#2A3F72', '#7C3AED']
+
+const ACTION_LABELS = {
+  started:   { label: 'Started',   color: 'bg-blue-100 text-blue-700' },
+  edited:    { label: 'Edited',    color: 'bg-gray-100 text-gray-600' },
+  printed:   { label: 'Printed',   color: 'bg-purple-100 text-purple-700' },
+  emailed:   { label: 'Emailed',   color: 'bg-indigo-100 text-indigo-700' },
+  completed: { label: 'Completed', color: 'bg-green-100 text-green-700' },
+  reopened:  { label: 'Reopened',  color: 'bg-amber-100 text-amber-700' },
+}
+
+const PERIOD_OPTIONS = [
+  { value: '3', label: 'Last 3 months',  period: 'month' },
+  { value: '6', label: 'Last 6 months',  period: 'month' },
+  { value: '12', label: 'Last 12 months', period: 'month' },
+  { value: '8', label: 'Last 8 weeks',   period: 'week' },
+]
+
+function MetricCard({ label, value, icon: Icon, bg, fg, isActive, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left bg-white rounded-xl border shadow-sm hover:shadow-md transition-all overflow-hidden focus:outline-none ${
+        isActive ? 'border-pdi-navy ring-2 ring-pdi-navy/30' : 'border-gray-100'
+      }`}
+    >
+      <div className={`${bg} px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between`}>
+        <span className={`text-2xl sm:text-3xl font-bold ${fg}`}>{value ?? '—'}</span>
+        <div className="p-1.5 sm:p-2 rounded-lg bg-white/20">
+          <Icon size={18} className={fg} />
+        </div>
+      </div>
+      <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white">
+        <span className="text-xs sm:text-sm font-medium text-gray-600 leading-tight block">{label}</span>
+        {isActive && <span className="text-xs text-pdi-navy font-semibold">● filtered</span>}
+      </div>
+    </button>
+  )
+}
+
+function NcrBadge({ value, colorMap, labelMap }) {
+  const color = colorMap[value] || 'bg-gray-100 text-gray-600 ring-1 ring-gray-200'
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>
+      {labelMap[value] || value}
+    </span>
+  )
+}
+
+export default function Dashboard() {
+  const navigate = useNavigate()
+  const user = getUser()
+  const [activeFilter, setActiveFilter] = useState(null)
+  const [chartPeriodIdx, setChartPeriodIdx] = useState(1)
+  const [fireRingModalId, setFireRingModalId] = useState(null)
+
+  const isAdminRole = user && (user.role === 'admin' || user.role === 'qc_manager')
+
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: async () => { const { data } = await api.get('/dashboard/stats'); return data },
+  })
+
+  const { data: qualityAlertCount = 0 } = useQualityAlertCount()
+  const { data: inspectionAlerts = {} } = useInspectionAlerts()
+  const { data: fireRingEligible = [] } = useFireRingEligible()
+
+  const chartPeriod = PERIOD_OPTIONS[chartPeriodIdx]
+  const { data: chartRaw } = useQuery({
+    queryKey: ['dashboard-chart', chartPeriod.period, chartPeriod.value],
+    queryFn: async () => {
+      const { data } = await api.get(`/dashboard/chart?period=${chartPeriod.period}&range=${chartPeriod.value}`)
+      return data
+    },
+  })
+
+  // Pivot chart rows into recharts shape
+  const componentTypes = [...new Set((chartRaw?.rows || []).map(r => r.component_type))]
+  const periodMap = {}
+  for (const row of (chartRaw?.rows || [])) {
+    if (!periodMap[row.period]) periodMap[row.period] = { period: row.period }
+    const label = COMPONENT_TYPE_LABELS[row.component_type] || row.component_type
+    periodMap[row.period][label] = (periodMap[row.period][label] || 0) + row.count
+  }
+  const chartData = Object.values(periodMap)
+
+  // Determine which panel to show based on active filter
+  const showInspections = activeFilter !== null && !['ncrs', 'past_due', 'short_duration', 'fire_ring'].includes(activeFilter)
+  const showAllInspections = activeFilter === 'all'
+  const showNcrs = activeFilter === 'ncrs'
+  const showPastDue = activeFilter === 'past_due'
+  const showShortDuration = activeFilter === 'short_duration'
+  const showFireRing = activeFilter === 'fire_ring'
+
+  const inspectionFilter = showInspections
+    ? (showAllInspections ? { limit: 50, page: 1 } : { status: activeFilter, limit: 50, page: 1 })
+    : null
+  const { data: filteredData, isLoading: filteredLoading } = useInspections(
+    inspectionFilter,
+    { enabled: showInspections }
+  )
+  const tableInspections = showInspections ? (filteredData?.inspections || []) : []
+
+  const { data: ncrData, isLoading: ncrLoading } = useNCRs(
+    { status: 'open', limit: 50 },
+    { enabled: showNcrs }
+  )
+  const tableNcrs = showNcrs ? (ncrData?.ncrs || []) : []
+
+  const tablePastDue = showPastDue ? (inspectionAlerts.past_due || []) : []
+  const tableShortDuration = showShortDuration ? (inspectionAlerts.short_duration || []) : []
+
+  function handleCardClick(filter) {
+    setActiveFilter(prev => prev === filter ? null : filter)
+  }
+
+  const allConfigs = [...METRIC_CONFIGS, ...(isAdminRole ? ADMIN_METRIC_CONFIGS : []), FIRE_RING_CONFIG]
+  const activeConfig = allConfigs.find(m => m.filter === activeFilter)
+
+  return (
+    <div className="min-h-full bg-gray-50/50">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 sm:py-5">
+        <div className="flex items-start sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-pdi-navy">Dashboard</h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 flex items-center gap-1.5">
+              <TrendingUp size={13} className="flex-shrink-0" />
+              <span className="truncate">PDI Incoming Quality Inspection</span>
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/inspections/new')}
+            className="flex items-center gap-2 bg-pdi-navy text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-semibold hover:bg-pdi-navy-light shadow-sm transition-all flex-shrink-0"
+            title="New Inspection"
+          >
+            <PlusCircle size={16} />
+            <span className="hidden sm:inline">New Inspection</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        {/* Quality Alerts Widget */}
+        {qualityAlertCount !== undefined && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            {qualityAlertCount > 0 ? (
+              <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-5 py-3 sm:py-4">
+                <div className="flex items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1">
+                    <AlertTriangle size={18} className="text-amber-600 flex-shrink-0 mt-0.5 sm:mt-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-amber-900">
+                        {qualityAlertCount} unacknowledged quality alert{qualityAlertCount !== 1 ? 's' : ''}
+                      </p>
+                      <p className="text-xs text-amber-700 mt-0.5">Review these alerts for product quality concerns</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate('/quality-alerts')}
+                    className="flex-shrink-0 text-xs text-amber-700 hover:text-amber-900 font-semibold underline min-h-[32px] min-w-[60px] text-right"
+                  >
+                    View All →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-50 border-b border-green-200 px-4 sm:px-5 py-3 sm:py-4">
+                <div className="flex items-center gap-2">
+                  <CheckSquare size={18} className="text-green-600" />
+                  <p className="text-sm font-medium text-green-700">No open quality alerts</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* KPI Cards */}
+        <div className={`grid gap-3 sm:gap-4 ${isAdminRole ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-7' : 'grid-cols-2 lg:grid-cols-5'}`}>
+          {METRIC_CONFIGS.map(({ key, label, icon, bg, fg, filter }) => (
+            <MetricCard key={key} label={label} value={stats?.[key]} icon={icon} bg={bg} fg={fg}
+              isActive={activeFilter === filter}
+              onClick={() => handleCardClick(filter)}
+            />
+          ))}
+          {isAdminRole && ADMIN_METRIC_CONFIGS.map(({ key, label, icon, bg, fg, filter }) => (
+            <MetricCard key={key} label={label}
+              value={key === 'past_due' ? (inspectionAlerts.past_due || []).length : (inspectionAlerts.short_duration || []).length}
+              icon={icon} bg={bg} fg={fg}
+              isActive={activeFilter === filter}
+              onClick={() => handleCardClick(filter)}
+            />
+          ))}
+          <MetricCard key={FIRE_RING_CONFIG.key} label={FIRE_RING_CONFIG.label} value={fireRingEligible.length}
+            icon={FIRE_RING_CONFIG.icon} bg={FIRE_RING_CONFIG.bg} fg={FIRE_RING_CONFIG.fg}
+            isActive={activeFilter === FIRE_RING_CONFIG.filter}
+            onClick={() => handleCardClick(FIRE_RING_CONFIG.filter)}
+          />
+        </div>
+
+        {/* Filtered inspection table */}
+        {showInspections && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-1 h-5 bg-pdi-navy rounded-full flex-shrink-0" />
+                <h2 className="text-sm sm:text-base font-semibold text-gray-800 truncate">{activeConfig?.filterLabel}</h2>
+                <span className="text-xs text-gray-400 flex-shrink-0">({tableInspections.length})</span>
+              </div>
+              <button onClick={() => navigate('/inspections')} className="text-xs text-pdi-navy hover:underline font-medium flex-shrink-0">View all →</button>
+            </div>
+            {filteredLoading ? (
+              <div className="text-center text-gray-400 text-sm py-10">Loading…</div>
+            ) : tableInspections.length === 0 ? (
+              <div className="text-center text-gray-400 text-sm py-10">No matching inspections</div>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        {['Component', 'Part Number', 'PO Number', 'Lot / Serial', 'Inspector', 'Date Received', 'Status'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {tableInspections.map(insp => (
+                        <tr key={insp.id} onClick={() => navigate(`/inspections/${insp.id}`)} className="hover:bg-blue-50/50 cursor-pointer">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-800">{COMPONENT_TYPE_LABELS[insp.component_type] || insp.component_type || '—'}</div>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700">{insp.part_number || '—'}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700">{insp.po_number || '—'}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700">{insp.lot_serial_no || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{insp.inspector_name || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{formatDate(insp.date_received || insp.created_at)}</td>
+                          <td className="px-4 py-3"><StatusBadge status={insp.status} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {tableInspections.map(insp => (
+                    <button key={insp.id} type="button" onClick={() => navigate(`/inspections/${insp.id}`)}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50/50 active:bg-blue-50 transition-colors min-h-[44px]"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-gray-800 text-sm truncate">{COMPONENT_TYPE_LABELS[insp.component_type] || insp.component_type || '—'}</div>
+                        </div>
+                        <div className="flex-shrink-0"><StatusBadge status={insp.status} /></div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                        <div className="min-w-0"><span className="text-gray-400">Part: </span><span className="font-mono text-gray-700">{insp.part_number || '—'}</span></div>
+                        <div className="min-w-0"><span className="text-gray-400">PO: </span><span className="font-mono text-gray-700">{insp.po_number || '—'}</span></div>
+                        <div className="min-w-0 truncate"><span className="text-gray-400">By: </span><span className="text-gray-700">{insp.inspector_name || '—'}</span></div>
+                        <div className="min-w-0 truncate"><span className="text-gray-400">On: </span><span className="text-gray-500">{formatDate(insp.date_received || insp.created_at)}</span></div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Filtered NCR table */}
+        {showNcrs && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-1 h-5 bg-pdi-red rounded-full flex-shrink-0" />
+                <h2 className="text-sm sm:text-base font-semibold text-gray-800 truncate">Open NCRs</h2>
+                <span className="text-xs text-gray-400 flex-shrink-0">({tableNcrs.length})</span>
+              </div>
+              <button onClick={() => navigate('/ncrs')} className="text-xs text-pdi-navy hover:underline font-medium flex-shrink-0">View all →</button>
+            </div>
+            {ncrLoading ? (
+              <div className="text-center text-gray-400 text-sm py-10">Loading…</div>
+            ) : tableNcrs.length === 0 ? (
+              <div className="text-center text-gray-400 text-sm py-10">No open NCRs</div>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        {['NCR #', 'Part Number', 'Supplier', 'Description', 'Severity', 'Status', 'Created'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {tableNcrs.map(ncr => (
+                        <tr key={ncr.id} onClick={() => navigate(`/ncrs/${ncr.id}`)} className="hover:bg-orange-50/40 cursor-pointer">
+                          <td className="px-4 py-3 font-mono text-xs font-bold text-pdi-navy">{ncr.ncr_number}</td>
+                          <td className="px-4 py-3 font-mono text-xs">{ncr.part_number || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{ncr.supplier || '—'}</td>
+                          <td className="px-4 py-3 text-sm max-w-xs truncate text-gray-700">{ncr.description_of_defect}</td>
+                          <td className="px-4 py-3"><NcrBadge value={ncr.severity} colorMap={NCR_SEVERITY_COLORS} labelMap={NCR_SEVERITY_LABELS} /></td>
+                          <td className="px-4 py-3"><NcrBadge value={ncr.status} colorMap={NCR_STATUS_COLORS} labelMap={NCR_STATUS_LABELS} /></td>
+                          <td className="px-4 py-3 text-xs text-gray-500">{formatDate(ncr.created_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {tableNcrs.map(ncr => (
+                    <button key={ncr.id} type="button" onClick={() => navigate(`/ncrs/${ncr.id}`)}
+                      className="w-full text-left px-4 py-3 hover:bg-orange-50/40 active:bg-orange-50 transition-colors min-h-[44px]"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-xs font-bold text-pdi-navy">{ncr.ncr_number}</div>
+                          <div className="font-mono text-xs text-gray-500 mt-0.5 truncate">{ncr.part_number || '—'}</div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <NcrBadge value={ncr.severity} colorMap={NCR_SEVERITY_COLORS} labelMap={NCR_SEVERITY_LABELS} />
+                          <NcrBadge value={ncr.status} colorMap={NCR_STATUS_COLORS} labelMap={NCR_STATUS_LABELS} />
+                        </div>
+                      </div>
+                      <div className="mt-1.5 text-xs text-gray-700 line-clamp-2">{ncr.description_of_defect}</div>
+                      <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                        <span className="text-gray-500 truncate">{ncr.supplier || '—'}</span>
+                        <span className="text-gray-400 flex-shrink-0">{formatDate(ncr.created_at)}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Past Due filtered panel */}
+        {showPastDue && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-1 h-5 bg-purple-600 rounded-full flex-shrink-0" />
+                <h2 className="text-sm sm:text-base font-semibold text-gray-800 truncate">Past Due Inspections</h2>
+                <span className="text-xs text-gray-400 flex-shrink-0">({tablePastDue.length})</span>
+              </div>
+              <button onClick={() => navigate('/inspections')} className="text-xs text-pdi-navy hover:underline font-medium flex-shrink-0">View all →</button>
+            </div>
+            {tablePastDue.length === 0 ? (
+              <div className="text-center text-gray-400 text-sm py-10">No past due inspections</div>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        {['Part Number', 'Lot / Serial', 'Component', 'Inspector', 'Due Date', 'Status'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {tablePastDue.map(insp => (
+                        <tr key={insp.id} onClick={() => navigate(`/inspections/${insp.id}`)} className="hover:bg-red-50/40 cursor-pointer">
+                          <td className="px-4 py-3 font-mono text-xs font-bold text-pdi-navy">{insp.part_number || '—'}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700">{insp.lot_serial_no || '—'}</td>
+                          <td className="px-4 py-3 text-xs text-gray-700">{COMPONENT_TYPE_LABELS[insp.component_type] || insp.component_type || '—'}</td>
+                          <td className="px-4 py-3 text-xs text-gray-700">{insp.assigned_to_name || insp.inspector_name || '—'}</td>
+                          <td className="px-4 py-3 text-xs text-red-600 font-semibold">{formatDate(insp.due_date)}</td>
+                          <td className="px-4 py-3"><StatusBadge status={insp.status} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {tablePastDue.map(insp => (
+                    <button key={insp.id} type="button" onClick={() => navigate(`/inspections/${insp.id}`)}
+                      className="w-full text-left px-4 py-3 hover:bg-red-50/40 active:bg-red-50 transition-colors min-h-[44px]"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-xs font-bold text-pdi-navy">{insp.part_number || '—'}</div>
+                          <div className="font-mono text-xs text-gray-500 mt-0.5 truncate">{insp.lot_serial_no || '—'}</div>
+                        </div>
+                        <div className="text-xs text-red-600 font-semibold flex-shrink-0">{formatDate(insp.due_date)}</div>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-3 text-xs text-gray-500">
+                        <span>{insp.assigned_to_name || insp.inspector_name || '—'}</span>
+                        <StatusBadge status={insp.status} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Short Duration filtered panel */}
+        {showShortDuration && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-1 h-5 bg-orange-500 rounded-full flex-shrink-0" />
+                <h2 className="text-sm sm:text-base font-semibold text-gray-800 truncate">Short Duration Completions</h2>
+                <span className="text-xs text-gray-400 flex-shrink-0">({tableShortDuration.length})</span>
+              </div>
+              <button onClick={() => navigate('/inspections')} className="text-xs text-pdi-navy hover:underline font-medium flex-shrink-0">View all →</button>
+            </div>
+            {tableShortDuration.length === 0 ? (
+              <div className="text-center text-gray-400 text-sm py-10">No short duration completions</div>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        {['Part Number', 'Component', 'Inspector', 'Date Completed', 'Duration'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {tableShortDuration.map(insp => (
+                        <tr key={insp.id} onClick={() => navigate(`/inspections/${insp.id}`)} className="hover:bg-orange-50/40 cursor-pointer">
+                          <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{insp.part_number || '—'}</td>
+                          <td className="px-4 py-2.5 text-xs text-gray-700">{COMPONENT_TYPE_LABELS[insp.component_type] || insp.component_type || '—'}</td>
+                          <td className="px-4 py-2.5 text-xs text-gray-700">{insp.inspector_name || '—'}</td>
+                          <td className="px-4 py-2.5 text-xs text-gray-500">{formatDate(insp.created_at)}</td>
+                          <td className="px-4 py-2.5 text-xs text-orange-600 font-semibold">{insp.duration_minutes != null ? `${insp.duration_minutes}m` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {tableShortDuration.map(insp => (
+                    <button key={insp.id} type="button" onClick={() => navigate(`/inspections/${insp.id}`)}
+                      className="w-full text-left px-4 py-3 hover:bg-orange-50/40 active:bg-orange-50 transition-colors min-h-[44px]"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-xs text-gray-700">{insp.part_number || '—'}</div>
+                          <div className="text-xs text-gray-500 mt-0.5 truncate">{insp.inspector_name || '—'}</div>
+                        </div>
+                        <div className="text-xs text-orange-600 font-semibold flex-shrink-0">{insp.duration_minutes != null ? `${insp.duration_minutes}m` : '—'}</div>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-400">{formatDate(insp.created_at)}</div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Add Fire Ring filtered panel */}
+        {showFireRing && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-1 h-5 bg-blue-600 rounded-full flex-shrink-0" />
+                <h2 className="text-sm sm:text-base font-semibold text-gray-800 truncate">Add Fire Ring</h2>
+                <span className="text-xs text-gray-400 flex-shrink-0">({fireRingEligible.length})</span>
+              </div>
+              <span className="text-xs text-gray-400 flex-shrink-0 hidden sm:block">Click an inspection to add Fire Ring Protrusion measurements</span>
+            </div>
+            {fireRingEligible.length === 0 ? (
+              <div className="text-center text-gray-400 text-sm py-10">No inspections awaiting Fire Ring measurements</div>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        {['Part Number', 'Lot / Serial', 'PO Number', 'Inspector', 'Completed'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {fireRingEligible.map(insp => (
+                        <tr key={insp.id} onClick={() => setFireRingModalId(insp.id)} className="hover:bg-blue-50/50 cursor-pointer">
+                          <td className="px-4 py-3 font-mono text-xs font-bold text-pdi-navy">{insp.part_number || '—'}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700">{insp.lot_serial_no || '—'}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700">{insp.po_number || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{insp.inspector_name || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{formatDate(insp.completed_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {fireRingEligible.map(insp => (
+                    <button key={insp.id} type="button" onClick={() => setFireRingModalId(insp.id)}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50/50 active:bg-blue-50 transition-colors min-h-[44px]"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-xs font-bold text-pdi-navy">{insp.part_number || '—'}</div>
+                          <div className="font-mono text-xs text-gray-500 mt-0.5 truncate">{insp.lot_serial_no || '—'}</div>
+                        </div>
+                        <div className="text-xs text-gray-400 flex-shrink-0">{formatDate(insp.completed_at)}</div>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-3 text-xs text-gray-500">
+                        <span className="truncate">{insp.inspector_name || '—'}</span>
+                        {insp.po_number && <span className="font-mono flex-shrink-0">PO {insp.po_number}</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Recent Activity */}
+        {stats?.recent_inspections && stats.recent_inspections.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-gray-200 bg-gray-50 gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-5 bg-pdi-teal rounded-full flex-shrink-0" />
+                <h3 className="text-sm sm:text-base font-semibold text-gray-800">Recent Activity</h3>
+              </div>
+              <button onClick={() => navigate('/inspections')} className="text-xs text-pdi-navy hover:underline font-medium flex-shrink-0">View all →</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Part Number', 'Part Type', 'PO Number', 'Lot / Serial', 'Inspector', 'Status', 'Last Update'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {stats.recent_inspections.map(insp => (
+                    <tr key={insp.id} onClick={() => navigate(`/inspections/${insp.id}`)} className="hover:bg-blue-50/50 cursor-pointer">
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{insp.part_number || '—'}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-700">{COMPONENT_TYPE_LABELS[insp.component_type] || insp.component_type || '—'}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{insp.po_number || '—'}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{insp.lot_serial_no || '—'}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-700">{insp.inspector_name || '—'}</td>
+                      <td className="px-4 py-2.5"><StatusBadge status={insp.status} /></td>
+                      <td className="px-4 py-2.5 text-xs text-gray-500">{formatDate(insp.updated_at || insp.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* Add Fire Ring modal */}
+      {fireRingModalId && (
+        <AddFireRingModal
+          inspectionId={fireRingModalId}
+          onClose={() => setFireRingModalId(null)}
+          onSaved={() => setFireRingModalId(null)}
+        />
+      )}
+    </div>
+  )
+}

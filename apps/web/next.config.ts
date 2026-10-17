@@ -25,7 +25,9 @@ const csp = [
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: repoRoot,
-  turbopack: { root: repoRoot },
+  turbopack: { root: repoRoot, rules: {
+    '*': { condition: { path: /apps\/web\/src\/qms\/.*\.(?:js|jsx)$/ }, loaders: ['./qms-source-loader.cjs'] },
+  } },
   poweredByHeader: false,
   reactStrictMode: true,
   async rewrites() {

@@ -1,0 +1,684 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Edit, Paperclip, Loader2, X, Printer, Mail, AlertTriangle, Bell, CheckSquare, UserPlus, Trash2, Ruler } from 'lucide-react'
+import { useInspection, useAssignInspection, useDeleteInspection } from '../hooks/useInspections'
+import { useTemplate } from '../hooks/useTemplates'
+import { useAttachments, useUploadAttachment, useDeleteAttachment } from '../hooks/useAttachments'
+import { useToast } from '../hooks/useToast'
+import { getUser } from '../lib/auth'
+import { useQueryClient } from '@tanstack/react-query'
+import api from '../lib/api'
+import StatusBadge from '../components/StatusBadge'
+import AuthImage from '../components/AuthImage'
+import SectionReceiving from '../components/inspection/SectionReceiving'
+import SectionVisual from '../components/inspection/SectionVisual'
+import SectionDimensional from '../components/inspection/SectionDimensional'
+import SectionChecklist from '../components/inspection/SectionChecklist'
+import SectionGeneralMeasurements from '../components/inspection/SectionGeneralMeasurements'
+import SectionCamshaftBore from '../components/inspection/SectionCamshaftBore'
+import SectionFireRingProtrusion from '../components/inspection/SectionFireRingProtrusion'
+import SectionValveRecession from '../components/inspection/SectionValveRecession'
+import SectionVacuumTest from '../components/inspection/SectionVacuumTest'
+import SectionGrooveSpecs from '../components/inspection/SectionGrooveSpecs'
+import AddFireRingModal from '../components/inspection/AddFireRingModal'
+import FileUploadZone from '../components/FileUploadZone'
+import { formatDate, formatDateTime, formatFileSize, canAddFireRing } from '../lib/utils'
+import { HEADER_FIELD_LABELS, dispositionColor, dispositionLabel } from '../lib/constants'
+import { getItemDisposition, getItemSerial, getItemLabel, seedItemSerials } from '../lib/itemCompletion'
+import {
+  isReceivingSection, splitSectionsByScope, extractSharedSectionData, sharedSectionAttachments,
+} from '../lib/sections'
+
+const SECTION_COMPONENTS = {
+  pfn_checklist: SectionReceiving,
+  pfn_visual: SectionVisual,
+  dimensional: SectionDimensional,
+  pass_fail_checklist: SectionChecklist,
+  general_measurements: SectionGeneralMeasurements,
+  camshaft_bore: SectionCamshaftBore,
+  fire_ring_protrusion: SectionFireRingProtrusion,
+  valve_recession: SectionValveRecession,
+  vacuum_test: SectionVacuumTest,
+  groove_specs: SectionGrooveSpecs,
+}
+
+export default function InspectionDetail() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { showToast } = useToast()
+  const user = getUser()
+
+  const { data: inspection, isLoading: loadingInsp } = useInspection(id)
+  const { data: template, isLoading: loadingTpl } = useTemplate(inspection?.template_id)
+  const { data: attachments = [] } = useAttachments(id)
+  const uploadFile = useUploadAttachment()
+  const deleteFile = useDeleteAttachment()
+
+  const deleteInspection = useDeleteInspection()
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [showFireRingModal, setShowFireRingModal] = useState(false)
+  const [reviewNotes, setReviewNotes] = useState('')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const qc = useQueryClient()
+  const isAdminRole = user && (user.role === 'admin' || user.role === 'qc_manager')
+  const assignInspection = useAssignInspection()
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [assignUserId, setAssignUserId] = useState('')
+  const [assignDueDate, setAssignDueDate] = useState('')
+  const [assignSubmitting, setAssignSubmitting] = useState(false)
+  const [usersList, setUsersList] = useState([])
+
+  useEffect(() => {
+    if (isAdminRole) {
+      api.get('/admin/users').then(r => setUsersList(r.data?.users || [])).catch(() => {})
+    }
+  }, [isAdminRole])
+
+  async function handleAssign() {
+    if (!assignUserId) return
+    setAssignSubmitting(true)
+    try {
+      await assignInspection.mutateAsync({ id, assigned_to: assignUserId, due_date: assignDueDate || null })
+      setShowAssignModal(false)
+      showToast('Inspection assigned', 'success')
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to assign', 'error')
+    } finally {
+      setAssignSubmitting(false)
+    }
+  }
+
+  function handleEmail() {
+    const subject = encodeURIComponent(`PDI Inspection ${inspection.form_no} — ${inspection.part_number || 'No part #'}`)
+    const body = encodeURIComponent(
+      `Please review the following inspection:\n\nForm: ${inspection.form_no}\nPart Number: ${inspection.part_number || '—'}\nPO Number: ${inspection.po_number || '—'}\nInspector: ${inspection.inspector_name || '—'}\nStatus: ${inspection.status}\n\nView at: ${window.location.origin}/inspections/${id}`
+    )
+    window.open(`mailto:?subject=${subject}&body=${body}`)
+  }
+
+  async function handleDownloadPdf() {
+    setPdfLoading(true)
+    try {
+      const response = await api.get(`/inspections/${id}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(response.data)
+      const a = document.createElement('a')
+      a.href = url
+      // Filename format: QC_<Part#>_<Serial#>.pdf
+      const clean = (v, fallback) => {
+        const s = String(v ?? '').trim().replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '')
+        return s || fallback
+      }
+      const part = clean(inspection.part_number, 'NoPart')
+      // lot_serial_no lists every item's serial; the filename takes the first.
+      const serial = clean(String(inspection.lot_serial_no || '').split(',')[0], 'NoSerial')
+      a.download = `QC_${part}_${serial}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to generate PDF', 'error')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  async function handleUpload(files) {
+    for (const file of files) {
+      try {
+        await uploadFile.mutateAsync({ inspectionId: id, file })
+      } catch {
+        showToast(`Failed to upload ${file.name}`, 'error')
+      }
+    }
+  }
+
+  async function openAttachment(att) {
+    try {
+      const res = await api.get(`/attachments/download/${att.id}`, { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      if (!att.mime_type?.startsWith('image/')) a.download = att.file_name
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    } catch {
+      showToast('Failed to open file', 'error')
+    }
+  }
+
+  if (loadingInsp || loadingTpl) return <div className="p-4 sm:p-6 text-gray-400">Loading…</div>
+  if (!inspection || !template) return <div className="p-4 sm:p-6 text-red-500">Not found</div>
+
+  const rawSectionData = typeof inspection.section_data === 'string'
+    ? JSON.parse(inspection.section_data || '{}')
+    : (inspection.section_data || {})
+  // Admin section overrides (if any) take priority over the template default.
+  const sections = (rawSectionData.__admin_sections && typeof rawSectionData.__admin_sections === 'object')
+    ? rawSectionData.__admin_sections
+    : (typeof template.sections === 'string' ? JSON.parse(template.sections) : template.sections)
+  // Section A is answered once for the whole inspection; the rest per item.
+  const { inspectionLevel: inspectionLevelSections, perItem: perItemSections } =
+    splitSectionsByScope(sections)
+  const sharedSectionData = extractSharedSectionData(rawSectionData, sections)
+  // Build the per-item list. New inspections store answers under __items;
+  // legacy inspections keep answers as top-level section keys (= item 0).
+  let itemDataList
+  if (Array.isArray(rawSectionData.__items) && rawSectionData.__items.length > 0) {
+    itemDataList = rawSectionData.__items
+  } else {
+    const legacy = {}
+    for (const k of Object.keys(rawSectionData)) {
+      if (k.startsWith('__')) continue
+      legacy[k] = rawSectionData[k]
+    }
+    // Legacy inspections kept disposition at the inspection level; surface it as
+    // item 0's disposition so the per-item view shows it.
+    if (inspection.disposition) legacy.__disposition = inspection.disposition
+    if (inspection.disposition_notes) legacy.__disposition_notes = inspection.disposition_notes
+    itemDataList = [legacy]
+  }
+  // Inspections recorded before serials moved to the item level carry theirs on
+  // the inspection row; show it against the item(s) it belongs to.
+  itemDataList = seedItemSerials(itemDataList, inspection.lot_serial_no)
+  // Attachment key for a given item index (mirrors the form/PDF convention).
+  const attKeyFor = (itemIdx, sectionKey) => (itemIdx === 0 ? sectionKey : `item${itemIdx}__${sectionKey}`)
+  const headerFields = typeof template.header_schema === 'string' ? JSON.parse(template.header_schema) : template.header_schema
+  const canEdit = inspection.status === 'draft' || inspection.status === 'partially_complete'
+
+  async function handleReview(createAlert) {
+    setReviewSubmitting(true)
+    try {
+      await api.post(`/inspections/${id}/review`, { create_alert: createAlert, alert_notes: reviewNotes })
+      qc.invalidateQueries({ queryKey: ['inspection', id] })
+      setShowReviewModal(false)
+      showToast(createAlert ? 'Inspection approved and Quality Alert created' : 'Inspection approved', 'success')
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Review failed', 'error')
+    } finally {
+      setReviewSubmitting(false)
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      await deleteInspection.mutateAsync(id)
+      navigate('/inspections')
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Delete failed', 'error')
+      setDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }
+
+  return (
+    <div>
+      {/* Add Fire Ring modal */}
+      {showFireRingModal && (
+        <AddFireRingModal
+          inspectionId={id}
+          onClose={() => setShowFireRingModal(false)}
+          onSaved={() => setShowFireRingModal(false)}
+        />
+      )}
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <h3 className="text-base font-semibold text-gray-900">Delete Inspection?</h3>
+            <p className="text-sm text-gray-600">
+              Delete <span className="font-mono font-bold">{inspection.form_no}</span>? This cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 min-h-[40px]">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 min-h-[40px]">
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Assign modal for admins */}
+      {showAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-pdi-navy/10 rounded-full flex items-center justify-center">
+                <UserPlus size={18} className="text-pdi-navy" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Assign Inspection</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Assign this inspection to an inspector with an optional due date.</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Inspector</label>
+                <select
+                  value={assignUserId}
+                  onChange={e => setAssignUserId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-pdi-navy"
+                >
+                  <option value="">— Select inspector —</option>
+                  {usersList.filter(u => u.active).map(u => (
+                    <option key={u.id} value={u.id}>{u.name} ({u.role.replace('_', ' ')})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Due Date (optional)</label>
+                <input
+                  type="date"
+                  value={assignDueDate}
+                  onChange={e => setAssignDueDate(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-pdi-navy"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 min-h-[40px]"
+              >Cancel</button>
+              <button
+                onClick={handleAssign}
+                disabled={!assignUserId || assignSubmitting}
+                className="px-4 py-2 text-sm bg-pdi-navy text-white rounded-lg hover:bg-pdi-navy-light min-h-[40px] disabled:opacity-50"
+              >{assignSubmitting ? 'Assigning…' : 'Assign'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review modal for admins */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                <Bell size={18} className="text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Review Inspection</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  This inspection has Accepted items. Approve it and optionally create a Quality Alert.
+                </p>
+              </div>
+            </div>
+            <textarea
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-pdi-navy"
+              rows={3}
+              placeholder="Quality alert notes (optional)..."
+              value={reviewNotes}
+              onChange={e => setReviewNotes(e.target.value)}
+            />
+            <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 min-h-[40px]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleReview(false)}
+                disabled={reviewSubmitting}
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 min-h-[40px] disabled:opacity-50"
+              >
+                Approve (No Alert)
+              </button>
+              <button
+                onClick={() => handleReview(true)}
+                disabled={reviewSubmitting}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 min-h-[40px] disabled:opacity-50"
+              >
+                <Bell size={14} /> Approve + Quality Alert
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header — stacks on mobile, single row on desktop */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+        {/* Title line */}
+        <div className="px-4 sm:px-6 pt-2 sm:pt-3 flex items-center gap-2 flex-wrap">
+          <span className="font-mono text-xs sm:text-sm font-bold text-pdi-navy">{template.form_no}</span>
+          <span className="text-gray-400 hidden sm:inline">·</span>
+          <span className="text-xs sm:text-sm text-gray-700 truncate max-w-[40vw] sm:max-w-none">{inspection.part_number || 'No part #'}</span>
+          {inspection.po_number && (
+            <>
+              <span className="text-gray-400 hidden sm:inline">·</span>
+              <span className="text-xs sm:text-sm text-gray-500 truncate max-w-[40vw] sm:max-w-none">PO {inspection.po_number}</span>
+            </>
+          )}
+          <StatusBadge status={inspection.status} />
+          {inspection.disposition && <StatusBadge disposition={inspection.disposition} />}
+        </div>
+        {/* Action bar — horizontally scrollable on mobile */}
+        <div className="px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
+          {canEdit && (
+            <button
+              onClick={() => navigate(`/inspections/${id}/edit`)}
+              title={inspection.status === 'partially_complete' ? 'Continue Inspection' : 'Edit'}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm bg-pdi-navy text-white rounded-lg hover:bg-pdi-navy-light active:bg-pdi-navy min-h-[40px] flex-shrink-0"
+            >
+              <Edit size={14} />
+              <span className="hidden sm:inline">{inspection.status === 'partially_complete' ? 'Continue' : 'Edit'}</span>
+            </button>
+          )}
+          {isAdminRole && canEdit && (
+            <button
+              onClick={() => { setAssignUserId(inspection.assigned_to ? String(inspection.assigned_to) : ''); setAssignDueDate(inspection.due_date || ''); setShowAssignModal(true) }}
+              title="Assign"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 min-h-[40px] flex-shrink-0"
+            >
+              <UserPlus size={14} />
+              <span className="hidden sm:inline">Assign</span>
+            </button>
+          )}
+          <button
+            onClick={handleDownloadPdf}
+            disabled={pdfLoading}
+            title="Print PDF"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 min-h-[40px] flex-shrink-0"
+          >
+            {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+            <span className="hidden sm:inline">PDF</span>
+          </button>
+          <button
+            onClick={handleEmail}
+            title="Email"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 min-h-[40px] flex-shrink-0"
+          >
+            <Mail size={14} />
+            <span className="hidden sm:inline">Email</span>
+          </button>
+          {canAddFireRing(inspection, template) && (
+            <button
+              onClick={() => setShowFireRingModal(true)}
+              title="Add Fire Ring"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm bg-pdi-teal text-white rounded-lg hover:bg-teal-600 min-h-[40px] flex-shrink-0"
+            >
+              <Ruler size={14} />
+              <span className="hidden sm:inline">Add Fire Ring</span>
+            </button>
+          )}
+          {isAdminRole && inspection.status === 'pending_review' && (
+            <button
+              onClick={() => setShowReviewModal(true)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 min-h-[40px] flex-shrink-0"
+            >
+              <CheckSquare size={14} />
+              <span className="hidden sm:inline">Review</span>
+            </button>
+          )}
+          {isAdminRole && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              title="Delete"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm bg-white border border-red-200 text-red-500 rounded-lg hover:bg-red-50 min-h-[40px] flex-shrink-0 ml-auto"
+            >
+              <Trash2 size={14} />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-6 space-y-6">
+        {/* Header info */}
+        {headerFields && headerFields.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-4 sm:px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <h2 className="text-sm font-semibold text-gray-700">Inspection Details</h2>
+            </div>
+            <div className="p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+              {headerFields.map(field => {
+                const key = typeof field === 'string' ? field : field.key
+                const label = HEADER_FIELD_LABELS[key] || key
+                const value = inspection[key]
+                return (
+                  <div key={key}>
+                    <div className="text-xs text-gray-500 mb-0.5">{label}</div>
+                    <div className="text-sm font-medium text-gray-800">{value || '—'}</div>
+                  </div>
+                )
+              })}
+              {inspection.assigned_to_name && (
+                <div>
+                  <div className="text-xs text-gray-500 mb-0.5">Assigned To</div>
+                  <div className="text-sm font-medium text-gray-800">{inspection.assigned_to_name}</div>
+                </div>
+              )}
+              {inspection.due_date && (
+                <div>
+                  <div className="text-xs text-gray-500 mb-0.5">Due Date</div>
+                  <div className="text-sm font-medium text-gray-800">{formatDate(inspection.due_date)}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Section A — completed once for the whole inspection */}
+        {inspectionLevelSections.map(([key, section]) => {
+          const SectionComp = SECTION_COMPONENTS[section.section_type]
+          if (!SectionComp) return null
+          return (
+            <div key={key} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-4 sm:px-5 py-3 border-b border-gray-100 bg-gray-50">
+                <h2 className="text-sm font-semibold text-gray-700">{section.title || key}</h2>
+              </div>
+              <div className="p-4 sm:p-5">
+                <SectionComp
+                  section={section}
+                  data={sharedSectionData[key]}
+                  onChange={() => {}}
+                  readOnly={true}
+                  sectionKey={key}
+                  attachments={sharedSectionAttachments(attachments, key)}
+                  allowNA={isReceivingSection(key, section)}
+                />
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Section data — rendered per inspected item */}
+        {itemDataList.map((itemData, itemIdx) => {
+          const itemDisp = getItemDisposition(itemData)
+          const itemDispNotes = (itemData && itemData.__disposition_notes) || ''
+          const itemSerial = getItemSerial(itemData)
+          return (
+          <div key={`item-${itemIdx}`} className="space-y-3 sm:space-y-4">
+            {(itemDataList.length > 1 || itemSerial) && (
+              <div className="bg-pdi-navy text-white rounded-xl px-4 sm:px-5 py-2.5 text-sm font-semibold shadow-sm flex items-center justify-between gap-2">
+                <span>
+                  {itemDataList.length > 1 ? `Item ${itemIdx + 1} of ${itemDataList.length}` : 'Inspected Item'}
+                  {itemSerial && <span className="font-mono font-normal text-white/80"> · SN {itemSerial}</span>}
+                </span>
+                {itemDisp && (
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${dispositionColor(itemDisp)}`}>
+                    {dispositionLabel(itemDisp)}
+                  </span>
+                )}
+              </div>
+            )}
+            {perItemSections.map(([key, section]) => {
+              const SectionComp = SECTION_COMPONENTS[section.section_type]
+              if (!SectionComp) return null
+              return (
+                <div key={key} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-4 sm:px-5 py-3 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-semibold text-gray-700">{section.title || key}</h2>
+                  </div>
+                  <div className="p-4 sm:p-5">
+                    <SectionComp
+                      section={section}
+                      data={itemData[key]}
+                      onChange={() => {}}
+                      readOnly={true}
+                      sectionKey={attKeyFor(itemIdx, key)}
+                      attachments={attachments}
+                      allowNA={isReceivingSection(key, section)}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Per-item disposition */}
+            {itemDisp && (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-4 sm:px-5 py-3 border-b border-gray-100 bg-gray-50">
+                  <h2 className="text-sm font-semibold text-gray-700">
+                    {itemDataList.length > 1 ? `${getItemLabel(itemData, itemIdx)} — Disposition` : 'Disposition'}
+                  </h2>
+                </div>
+                <div className="p-4 sm:p-5 space-y-2">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${dispositionColor(itemDisp)}`}>
+                    {dispositionLabel(itemDisp)}
+                  </span>
+                  {itemDispNotes && (
+                    <p className="text-sm text-gray-600 mt-2">{itemDispNotes}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          )
+        })}
+
+        {/* Overall disposition (multi-item summary) */}
+        {inspection.disposition && itemDataList.length > 1 && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-4 sm:px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <h2 className="text-sm font-semibold text-gray-700">Overall Disposition</h2>
+            </div>
+            <div className="p-4 sm:p-5 space-y-2">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${dispositionColor(inspection.disposition)}`}>
+                {dispositionLabel(inspection.disposition)}
+              </span>
+              <p className="text-xs text-gray-400 mt-1">Derived from the worst-case item disposition.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Attachments */}
+        {(() => {
+          const general = attachments.filter(a => !a.section_key && !a.item_id)
+          const generalImages = general.filter(a => (a.mime_type || '').startsWith('image/'))
+          const generalFiles  = general.filter(a => !(a.mime_type || '').startsWith('image/'))
+          return (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-4 sm:px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Paperclip size={14} />
+                  Attachments ({attachments.length})
+                </h2>
+              </div>
+              <div className="p-4 sm:p-5 space-y-4">
+                {canEdit && (
+                  <FileUploadZone onFiles={handleUpload} uploading={uploadFile.isPending} />
+                )}
+
+                {/* Photo grid for bulk-uploaded images */}
+                {generalImages.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      Inspection Images ({generalImages.length})
+                    </h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {generalImages.map(att => (
+                        <div
+                          key={att.id}
+                          className="relative group border border-gray-200 rounded overflow-hidden bg-gray-50 cursor-pointer"
+                          style={{ aspectRatio: '2.45 / 3.25' }}
+                          onClick={() => openAttachment(att)}
+                          title={att.file_name}
+                        >
+                          <AuthImage
+                            attachmentId={att.id}
+                            alt={att.file_name}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          {canEdit && (
+                            <button
+                              onClick={e => { e.stopPropagation(); deleteFile.mutate({ id: att.id, inspectionId: id }) }}
+                              title="Remove image"
+                              className="absolute top-1 right-1 p-1 bg-white/80 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Non-image file list */}
+                {generalFiles.length > 0 && (
+                  <div className="space-y-2">
+                    {generalFiles.map(att => (
+                      <div key={att.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-gray-100 hover:bg-gray-50">
+                        <div className="min-w-0 flex-1">
+                          <button
+                            onClick={() => openAttachment(att)}
+                            className="text-sm text-pdi-navy hover:underline truncate block text-left"
+                          >
+                            {att.file_name}
+                          </button>
+                          <div className="text-xs text-gray-400">{formatFileSize(att.file_size_bytes)} · {formatDateTime(att.uploaded_at)}</div>
+                        </div>
+                        {canEdit && (
+                          <button
+                            onClick={() => deleteFile.mutate({ id: att.id, inspectionId: id })}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded transition-colors flex-shrink-0"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {general.length === 0 && !canEdit && (
+                  <div className="text-sm text-gray-400">No attachments</div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Quality alerts */}
+        {inspection.quality_alerts && inspection.quality_alerts.length > 0 && (
+          <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+            <div className="px-4 sm:px-5 py-3 border-b border-amber-100 bg-amber-50 flex items-center gap-2">
+              <AlertTriangle size={14} className="text-amber-600" />
+              <h2 className="text-sm font-semibold text-amber-700">Quality Alerts ({inspection.quality_alerts.length})</h2>
+            </div>
+            <div className="divide-y divide-amber-100">
+              {inspection.quality_alerts.map(alert => (
+                <div key={alert.id} className="px-4 sm:px-5 py-3">
+                  <div className="text-xs font-semibold text-amber-700">{alert.alert_type?.replace(/_/g, ' ')}</div>
+                  {alert.notes && <div className="text-sm text-gray-600 mt-1">{alert.notes}</div>}
+                  <div className="text-xs text-gray-400 mt-1">{formatDateTime(alert.created_at)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

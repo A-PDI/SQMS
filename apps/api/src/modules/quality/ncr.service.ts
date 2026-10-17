@@ -49,7 +49,7 @@ export class NcrService {
   /** Removes internal-only content for supplier users. */
   present(actor: Actor, n: NcrWithIncludes) {
     if (AccessScope.of(actor).isInternal) return n;
-    const { internalNotes: _notes, qualification: _q, legacyException: _legacy, incomingInspection: _incoming, firstArticle: _fai, defectLines: _defects, reportSections: _sections, scarLinks: _links, ...rest } = n;
+    const { internalNotes: _notes, qualification: _q, legacyException: _legacy, qmsFields: _qmsFields, incomingInspection: _incoming, firstArticle: _fai, defectLines: _defects, reportSections: _sections, scarLinks: _links, ...rest } = n;
     return rest;
   }
 
@@ -57,6 +57,7 @@ export class NcrService {
     const scope = AccessScope.of(actor);
     const term = trimQ(q.q);
     return {
+      archivedAt: null,
       ...(scope.isInternal ? {} : { ...scope.supplierWhere(), supplierVisible: true }),
       ...(q.status?.length ? { status: { in: q.status as NcrStatus[] } } : {}),
       ...(q.open ? { status: { in: OPEN_NCR_STATUSES } } : {}),
@@ -84,7 +85,7 @@ export class NcrService {
   async get(actor: Actor, id: string) {
     const scope = AccessScope.of(actor);
     const n = await this.db.client.nonconformance.findUnique({ where: { id }, include: INCLUDE });
-    if (!n || (!scope.isInternal && (!n.supplierVisible || n.supplierId !== scope.supplierId))) throw new NotFoundError("Nonconformance");
+    if (!n || n.archivedAt || (!scope.isInternal && (!n.supplierVisible || n.supplierId !== scope.supplierId))) throw new NotFoundError("Nonconformance");
     return this.present(actor, n);
   }
 

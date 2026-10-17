@@ -1,3 +1,4 @@
+import { QmsModule } from "./qms/qms.controller";
 import { InjectorSheetModule } from "./operations/sheet.controller";
 import { OperationalReportsModule } from "./operations/reports.controller";
 import { DrawingsModule } from "./operations/drawings.controller";
@@ -26,4 +27,4 @@ import { ConnectedQualityModule } from "./operations/connected-quality.controlle
 @Module({ controllers: [HealthController] })
 class HealthModule {}
 
-export const FEATURE_MODULES = [HealthModule, AuthModule, WorkflowModule, SuppliersModule, ProductsModule, ConfigurationsModule, FilesModule, DocumentTypesModule, DocumentsModule, SourcingModule, QualificationsModule, ChangeRequestsModule, QualityModule, CollaborationModule, AdminModule, InsightsModule, PortalModule, OperationsModule, ConnectedQualityModule, SpecificationsModule, DrawingsModule, OperationalReportsModule, InjectorSheetModule];
+export const FEATURE_MODULES = [HealthModule, AuthModule, WorkflowModule, SuppliersModule, ProductsModule, ConfigurationsModule, FilesModule, DocumentTypesModule, DocumentsModule, SourcingModule, QualificationsModule, ChangeRequestsModule, QualityModule, CollaborationModule, AdminModule, InsightsModule, PortalModule, OperationsModule, ConnectedQualityModule, SpecificationsModule, DrawingsModule, OperationalReportsModule, InjectorSheetModule, QmsModule];

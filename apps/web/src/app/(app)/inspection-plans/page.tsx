@@ -1,4 +1,2 @@
-import { InspectionPlans } from "@/components/operations/plans";
-export default function Page() {
-  return <InspectionPlans />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect('/admin'); }

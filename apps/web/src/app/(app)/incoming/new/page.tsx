@@ -1,4 +1,2 @@
-import { NewIncoming } from "@/components/operations/incoming";
-export default function Page() {
-  return <NewIncoming />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect('/inspections/new'); }
