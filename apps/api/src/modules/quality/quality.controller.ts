@@ -117,11 +117,11 @@ export class NcrController {
         { header: "Severity", value: (r) => r.severity },
         { header: "Status", value: (r) => r.status },
         { header: "Disposition", value: (r) => r.disposition },
-        { header: "Supplier", value: (r) => r.supplier.name },
-        { header: "Part", value: (r) => r.internalPart.partNumber },
+        { header: "Supplier", value: (r) => r.supplier?.name ?? "Unattributed" },
+        { header: "Part", value: (r) => r.internalPart?.partNumber ?? "Unresolved" },
         { header: "Lot", value: (r) => r.lotNumber },
         { header: "Qty affected", value: (r) => r.quantityAffected },
-        { header: "Owner", value: (r) => r.owner.displayName },
+        { header: "Owner", value: (r) => r.owner?.displayName ?? "Unknown" },
         { header: "Closed", value: (r) => r.closedAt?.toISOString().slice(0, 10) },
       ]),
     );
@@ -222,7 +222,7 @@ export class ScarController {
       toCsv(rows, [
         { header: "SCAR", value: (r) => r.number },
         { header: "Title", value: (r) => r.title },
-        { header: "Supplier", value: (r) => r.supplier.name },
+        { header: "Supplier", value: (r) => r.supplier?.name ?? "Unattributed" },
         { header: "NCR", value: (r) => r.ncr?.number },
         { header: "Severity", value: (r) => r.severity },
         { header: "Status", value: (r) => r.status },

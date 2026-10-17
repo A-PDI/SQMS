@@ -167,6 +167,9 @@ model InternalPart {
   @@index([categoryId])
   @@fulltext([partNumber, description])
   @@map("internal_parts")
+  incomingInspections IncomingInspection[]
+  inspectionSpecifications PartInspectionSpecification[]
+  features FeatureIdentity[]
 }
 
 model OemCrossReference {
@@ -261,6 +264,7 @@ model SupplierProduct {
   @@index([supplierId, status])
   @@index([siteId])
   @@map("supplier_products")
+  incomingInspections IncomingInspection[]
 }
 
 model ProductConfiguration {
@@ -335,6 +339,8 @@ model ConfigurationRevision {
   @@unique([configurationId, revisionNumber])
   @@index([status])
   @@map("configuration_revisions")
+  incomingInspections IncomingInspection[]
+  featureMappings FeatureRevisionMapping[]
 }
 
 /// Product definition for a configuration revision: a controlled company design, a supplier product baseline,
@@ -433,6 +439,8 @@ model CriticalCharacteristic {
 
   @@unique([configurationRevisionId, charNumber])
   @@map("critical_characteristics")
+  featureId String? @db.Char(36)
+  feature FeatureIdentity? @relation(fields: [featureId], references: [id])
 }
 
 /// The explicit approved supplier-product-configuration-site record used by purchasing.
@@ -464,4 +472,5 @@ model ProductApproval {
   @@index([supplierId, status])
   @@index([internalPartId, status])
   @@map("product_approvals")
+  incomingInspections IncomingInspection[]
 }

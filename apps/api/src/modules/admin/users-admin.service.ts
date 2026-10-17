@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { InvitationStatus, Prisma, UserStatus } from "@sqms/db";
+import { hashPassword, passwordPolicyViolation } from "@sqms/db";
 import type { AppEnv } from "@sqms/server-core";
 import { ROLE_KEYS } from "@sqms/shared";
 import type { Actor } from "../../common/auth/actor";
@@ -11,7 +12,7 @@ import { pageArgs, sortArg, trimQ, type Page } from "../../common/http/paginatio
 import { NotificationService } from "../../common/services/notification.service";
 import { SettingsService } from "../../common/services/settings.service";
 import { APP_ENV } from "../../infra/tokens";
-import type { CreateRoleDto, InvitationListQuery, InviteUserDto, UpdateUserDto, UserListQuery } from "./admin.dto";
+import type { CreateLocalUserDto, CreateRoleDto, InvitationListQuery, InviteUserDto, UpdateUserDto, UserListQuery } from "./admin.dto";
 
 const INVITATION_DAYS = 7;
 /** Never returned by the API. */
@@ -48,6 +49,27 @@ export class UsersAdminService {
   ) {}
 
   // ------------------------------------------------------------------ users
+
+  async createLocal(actor: Actor, dto: CreateLocalUserDto) {
+    const violation = passwordPolicyViolation(dto.password); if (violation) throw new BusinessRuleError(violation);
+    const email = dto.email.trim().toLowerCase();
+    const passwordHash = await hashPassword(dto.password);
+    try {
+      return await this.db.tx(async tx => {
+        const org = await tx.organization.findUniqueOrThrow({ where: { code: "INTERNAL" } });
+        const keys = [...new Set(dto.roleKeys)]; const roles = await tx.role.findMany({ where: { key: { in: keys }, scope: "INTERNAL" } });
+        if (roles.length !== keys.length) throw new BusinessRuleError("Choose known internal roles");
+        if (keys.includes(ROLE_KEYS.SYSTEM_ADMIN) && !actor.roles.includes(ROLE_KEYS.SYSTEM_ADMIN)) throw new ForbiddenError("Only system administrators can create administrators");
+        if (await tx.user.findUnique({ where: { email } })) throw new ConflictError("This local identity already exists; review its ownership and roles");
+        const user = await tx.user.create({ data: { email, displayName: dto.displayName, userType: "INTERNAL", status: "ACTIVE", passwordHash, passwordChangedAt: new Date(), memberships: { create: { organizationId: org.id, roles: { create: roles.map(r => ({ roleId: r.id, grantedById: actor.userId })) } } } }, select: USER_SELECT });
+        await this.audit.record({ eventType: "user.local_account_created", entityType: "USER", entityId: user.id, metadata: { roleKeys: keys, method: "administrator_local_provisioning" } }, tx);
+        return user;
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "P2002") throw new ConflictError("This local identity already exists");
+      throw error;
+    }
+  }
 
   async list(q: UserListQuery): Promise<Page<unknown>> {
     const { skip, take, page, pageSize } = pageArgs(q);

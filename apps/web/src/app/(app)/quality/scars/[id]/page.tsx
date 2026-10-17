@@ -202,7 +202,7 @@ export default function ScarPage() {
           )}
         </div>
         <div className="min-w-0">
-          <RecordPanel entityType="SCAR" entityId={id} />
+          <RecordPanel entityType="SCAR" entityId={id} canAttach={can("scar:write") && !["CLOSED","CANCELLED"].includes(s.status)} />
         </div>
       </div>
     </>

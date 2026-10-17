@@ -1,0 +1,220 @@
+// Operational QMS records. Shared masters remain in suppliers/products; no parallel vendor/part catalog.
+enum IncomingStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETE
+  ARCHIVED
+}
+
+enum PlanStatus {
+  DRAFT
+  RELEASED
+  RETIRED
+}
+
+model InspectionPlan {
+  id          String @id @default(uuid(7)) @db.Char(36)
+  code        String @unique @db.VarChar(80)
+  title       String @db.VarChar(250)
+  createdById String? @db.Char(36)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  revisions   InspectionPlanRevision[]
+  @@map("inspection_plans")
+}
+
+model InspectionPlanRevision {
+  id             String @id @default(uuid(7)) @db.Char(36)
+  planId         String @db.Char(36)
+  revision       Int
+  status         PlanStatus @default(DRAFT)
+  /// Original header/section definitions retained, including all PDI-IQI custom section types.
+  definition     Json
+  definitionHash String? @db.Char(64)
+  releasedById   String? @db.Char(36)
+  releasedAt     DateTime? @db.DateTime(3)
+  legacyVersionUnknown Boolean @default(false)
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  plan           InspectionPlan @relation(fields: [planId], references: [id])
+  inspections    IncomingInspection[]
+  specifications PartInspectionSpecification[]
+  @@unique([planId, revision])
+  @@map("inspection_plan_revisions")
+}
+
+model PartInspectionSpecification {
+  id             String @id @default(uuid(7)) @db.Char(36)
+  internalPartId String @db.Char(36)
+  planRevisionId String @db.Char(36)
+  data           Json
+  version        Int @default(0)
+  updatedAt      DateTime @updatedAt @db.DateTime(3)
+  internalPart   InternalPart @relation(fields: [internalPartId], references: [id])
+  planRevision   InspectionPlanRevision @relation(fields: [planRevisionId], references: [id])
+  @@unique([internalPartId, planRevisionId])
+  @@map("part_inspection_specifications")
+}
+
+model FeatureIdentity {
+  id             String @id @default(uuid(7)) @db.Char(36)
+  internalPartId String @db.Char(36)
+  key            String @db.VarChar(80)
+  name           String @db.VarChar(250)
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  internalPart   InternalPart @relation(fields: [internalPartId], references: [id])
+  characteristics CriticalCharacteristic[]
+  revisionMappings FeatureRevisionMapping[]
+  measurements   IncomingMeasurement[]
+  defects        NcrDefectLine[]
+  @@unique([internalPartId, key])
+  @@map("feature_identities")
+}
+
+model FeatureRevisionMapping {
+  id             String @id @default(uuid(7)) @db.Char(36)
+  featureId      String @db.Char(36)
+  configurationRevisionId String @db.Char(36)
+  balloonAlias   String? @db.VarChar(80)
+  /// COMPATIBLE, INCOMPATIBLE, or UNCERTAIN; cross-revision comparisons require two COMPATIBLE mappings.
+  compatibility  String @db.VarChar(20)
+  reason         String @db.Text
+  reviewedById   String @db.Char(36)
+  reviewedAt     DateTime @default(now()) @db.DateTime(3)
+  feature        FeatureIdentity @relation(fields: [featureId], references: [id])
+  configurationRevision ConfigurationRevision @relation(fields: [configurationRevisionId], references: [id])
+  @@unique([featureId, configurationRevisionId])
+  @@map("feature_revision_mappings")
+}
+
+model IncomingInspection {
+  id             String @id @default(uuid(7)) @db.Char(36)
+  number         String @unique @db.VarChar(80)
+  planRevisionId String @db.Char(36)
+  /// Frozen definition/specification at creation. Never re-read a later plan for historical reporting.
+  planSnapshot   Json
+  specificationSnapshot Json?
+  internalPartId String? @db.Char(36)
+  supplierId     String? @db.Char(36)
+  siteId         String? @db.Char(36)
+  supplierProductId String? @db.Char(36)
+  configurationRevisionId String? @db.Char(36)
+  productApprovalId String? @db.Char(36)
+  originalPartNumber String? @db.VarChar(200)
+  originalSupplier String? @db.VarChar(250)
+  resolutionNotes String? @db.Text
+  header         Json
+  receivedDate   DateTime? @db.Date
+  sectionData    Json
+  status         IncomingStatus @default(DRAFT)
+  disposition    String? @db.VarChar(80)
+  itemCount      Int @default(1)
+  assignedToId   String? @db.Char(36)
+  dueAt          DateTime? @db.DateTime(3)
+  completedAt    DateTime? @db.DateTime(3)
+  completedById  String? @db.Char(36)
+  createdById    String? @db.Char(36)
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  createdAtKnown Boolean @default(true)
+  updatedAt      DateTime @updatedAt @db.DateTime(3)
+  version        Int @default(0)
+  planRevision   InspectionPlanRevision @relation(fields: [planRevisionId], references: [id])
+  internalPart   InternalPart? @relation(fields: [internalPartId], references: [id])
+  supplier       Supplier? @relation(fields: [supplierId], references: [id])
+  site           SupplierSite? @relation(fields: [siteId], references: [id])
+  supplierProduct SupplierProduct? @relation(fields: [supplierProductId], references: [id])
+  configurationRevision ConfigurationRevision? @relation(fields: [configurationRevisionId], references: [id])
+  productApproval ProductApproval? @relation(fields: [productApprovalId], references: [id])
+  assignedTo     User? @relation("IncomingAssignee", fields: [assignedToId], references: [id], onDelete: Restrict)
+  createdBy      User? @relation("IncomingCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  completedBy    User? @relation("IncomingCompleter", fields: [completedById], references: [id], onDelete: Restrict)
+  items          IncomingItem[]
+  measurements   IncomingMeasurement[]
+  nonconformances Nonconformance[]
+  alerts         OperationalAlert[]
+  @@index([supplierId, internalPartId, status])
+  @@index([assignedToId, status, dueAt])
+  @@index([createdById])
+  @@index([completedById])
+  @@map("incoming_inspections")
+}
+
+model IncomingItem {
+  id           String @id @default(uuid(7)) @db.Char(36)
+  inspectionId String @db.Char(36)
+  position     Int
+  serialNumber String? @db.VarChar(200)
+  results      Json
+  inspection   IncomingInspection @relation(fields: [inspectionId], references: [id])
+  measurements IncomingMeasurement[]
+  @@unique([inspectionId, position])
+  @@map("incoming_items")
+}
+
+model IncomingMeasurement {
+  id            String @id @default(uuid(7)) @db.Char(36)
+  inspectionId  String @db.Char(36)
+  itemId        String? @db.Char(36)
+  featureId     String? @db.Char(36)
+  sectionKey    String @db.VarChar(100)
+  characteristicKey String @db.VarChar(100)
+  value         Decimal? @db.Decimal(24, 9)
+  textValue     String? @db.VarChar(1000)
+  outcome       InspectionOutcome
+  /// Specification, units, limits, method, feature/revision identity used when measured.
+  specification Json
+  recordVersion Int @default(0)
+  supersededAt  DateTime? @db.DateTime(3)
+  inspection    IncomingInspection @relation(fields: [inspectionId], references: [id])
+  item          IncomingItem? @relation(fields: [itemId], references: [id])
+  feature       FeatureIdentity? @relation(fields: [featureId], references: [id])
+  defects       NcrDefectLine[]
+  @@index([inspectionId, itemId])
+  @@index([featureId])
+  @@map("incoming_measurements")
+}
+
+model OperationalAlert {
+  id           String @id @default(uuid(7)) @db.Char(36)
+  inspectionId String? @db.Char(36)
+  originalPartNumber String? @db.VarChar(200)
+  originalSupplier String? @db.VarChar(250)
+  triggeredById String? @db.Char(36)
+  /// One alert per completion version; retries of the same completion cannot create duplicates.
+  completionVersion Int
+  type         String @db.VarChar(60)
+  notes        String? @db.Text
+  acknowledgedById String? @db.Char(36)
+  acknowledgedAt DateTime? @db.DateTime(3)
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+  inspection   IncomingInspection? @relation(fields: [inspectionId], references: [id], onDelete: Restrict)
+  @@unique([inspectionId, completionVersion])
+  @@map("operational_alerts")
+}
+
+model LegacyRecord {
+  id           String @id @default(uuid(7)) @db.Char(36)
+  sourceSystem String @db.VarChar(50)
+  entity       String @db.VarChar(80)
+  sourceId     String @db.VarChar(200)
+  sourceHash   String @db.Char(64)
+  /// Credential-free raw legacy history, distinct from application audit events.
+  snapshot     Json
+  targetType   String? @db.VarChar(80)
+  targetId     String? @db.Char(36)
+  targetHash   String? @db.Char(64)
+  status       String @default("UNRESOLVED") @db.VarChar(30)
+  reason       String? @db.Text
+  importedAt   DateTime @default(now()) @db.DateTime(3)
+  @@unique([sourceSystem, entity, sourceId])
+  @@index([targetType, targetId])
+  @@map("legacy_records")
+}
+
+model MigrationRun {
+  id           String @id @default(uuid(7)) @db.Char(36)
+  datasetId    String @db.VarChar(100)
+  sourceHash   String @db.Char(64)
+  mode         String @db.VarChar(30)
+  report       Json
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+  @@map("migration_runs")
+}

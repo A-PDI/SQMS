@@ -5,6 +5,7 @@ import { PART_CRITICALITY, PART_STATUS, humanize } from "@sqms/shared";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { EngineeringFeatures, PartSpecifications } from "@/components/operations/engineering";
 import { RecordPanel } from "@/components/common/collaboration";
 import { DetailGrid } from "@/components/common/detail-grid";
 import { FormDialog } from "@/components/forms/schema-form";
@@ -285,6 +286,8 @@ export default function PartDetailPage() {
             </TabsContent>
           </Tabs>
         </div>
+        <EngineeringFeatures partId={id} revisions={p.supplierProducts.flatMap(sp=>sp.configurations.flatMap(c=>c.revisions.map(r=>({id:r.id,label:`${sp.supplier.name} · ${sp.site.name} · ${c.configCode} rev ${r.revisionLabel}`}))))} />
+        <PartSpecifications partId={id} />
         <RecordPanel entityType="INTERNAL_PART" entityId={id} />
       </div>
     </>

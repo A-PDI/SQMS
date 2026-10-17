@@ -11,7 +11,8 @@
     "dev": "tsc -p tsconfig.build.json && (tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --env-file-if-exists=../../.env --watch dist/main.js)",
     "seed:demo": "node --env-file-if-exists=../../.env dist/seed-demo.js",
     "openapi:export": "node --env-file-if-exists=../../.env dist/openapi-export.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "migrate:legacy": "node dist/migration/cli.js"
   },
   "dependencies": {
     "@nestjs/common": "11.2.7",
@@ -20,6 +21,7 @@
     "@nestjs/swagger": "11.4.7",
     "@nestjs/throttler": "6.7.1",
     "@sqms/db": "workspace:*",
+    "@sqms/legacy-domain": "workspace:*",
     "@sqms/server-core": "workspace:*",
     "@sqms/shared": "workspace:*",
     "busboy": "1.6.0",

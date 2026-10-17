@@ -51,6 +51,10 @@ export async function dispatchOutbox(ctx: WorkerContext, adapters: IntegrationAd
   const events = await ctx.prisma.outboxEvent.findMany({ where: { status: "PENDING", availableAt: { lte: new Date() } }, orderBy: { createdAt: "asc" }, take: batchSize });
   let dispatched = 0;
   for (const event of events) {
+    // Compare-and-swap a bounded lease so multiple worker replicas cannot dispatch the same event together.
+    // A crashed process leaves a durable retry time; it cannot strand the event in memory.
+    const claimed = await ctx.prisma.outboxEvent.updateMany({ where: { id: event.id, status: "PENDING", availableAt: event.availableAt, attempts: event.attempts }, data: { availableAt: new Date(Date.now() + 5 * 60_000) } });
+    if (!claimed.count) continue;
     try {
       for (const adapter of adapters.filter((a) => a.handles(event.eventType))) await adapter.dispatch(event);
       await ctx.prisma.outboxEvent.update({ where: { id: event.id }, data: { status: "DISPATCHED", dispatchedAt: new Date(), attempts: { increment: 1 }, lastError: null } });

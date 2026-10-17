@@ -484,11 +484,14 @@ model RecordAttachment {
   entityId     String     @db.Char(36)
   fileObjectId String     @db.Char(36)
   description  String?    @db.VarChar(500)
+  /// Section, item position or NCR report-section identity; never a filesystem path.
+  context      Json?
   visibility   Visibility @default(INTERNAL)
   addedById    String     @db.Char(36)
   addedAt      DateTime   @default(now()) @db.DateTime(3)
   removedAt    DateTime?  @db.DateTime(3)
   removedById  String?    @db.Char(36)
+  version      Int @default(0)
 
   file FileObject @relation(fields: [fileObjectId], references: [id])
 

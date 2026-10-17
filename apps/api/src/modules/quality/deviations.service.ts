@@ -95,6 +95,7 @@ export class DeviationsService implements OnModuleInit, WorkflowSubjectHandler {
     if (dto.ncrId) {
       const n = await tx.nonconformance.findUnique({ where: { id: dto.ncrId } });
       if (!n) throw new NotFoundError("Nonconformance");
+      if (!n.supplierId) throw new BusinessRuleError("Resolve the NCR supplier before requesting a supplier concession");
       owners.push({ ref: "NCR", supplierId: n.supplierId });
     }
     if (!owners.length) throw new BusinessRuleError("Reference the affected supplier product, configuration, qualification or NCR");

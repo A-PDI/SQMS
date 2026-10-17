@@ -3,7 +3,7 @@ import { Type } from "class-transformer";
 import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from "class-validator";
 import { ToArray } from "../../common/http/dto-helpers";
 
-export const SEARCH_TYPES = ["supplier", "part", "supplier-part", "project", "document", "qualification", "change-request", "ncr", "scar", "deviation"] as const;
+export const SEARCH_TYPES = ["incoming-inspection", "injector-test", "injector-repair", "supplier", "part", "supplier-part", "project", "document", "qualification", "change-request", "ncr", "scar", "deviation"] as const;
 
 export class SearchQuery {
   @ApiProperty() @IsString() @MinLength(2) @MaxLength(100) q: string;

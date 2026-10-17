@@ -128,6 +128,17 @@ export const fileDownloadUrl = (fileId: string) => `${API_BASE}/files/${fileId}/
 export const filePreviewUrl = (fileId: string) => `${API_BASE}/files/${fileId}/preview`;
 export const csvUrl = (path: string, query?: Record<string, unknown>) => `${API_BASE}${path}${qs(query)}`;
 
+/** Authenticated report export with the same CSRF policy as JSON mutations. */
+export async function downloadReport(path: string, body: unknown, filename: string): Promise<void> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
+  const response = await fetch(`${API_BASE}${path}`, { method: "POST", credentials: "same-origin", headers, body: JSON.stringify(body) });
+  if (!response.ok) throw await parseError(response);
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export interface Page<T> {
   items: T[];
   total: number;

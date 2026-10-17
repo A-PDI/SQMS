@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import type { Prisma, ProductQualificationStatus, RiskLevel, SourcingPathwayCode, WorkflowInstance } from "@sqms/db";
+import { Prisma, type ProductQualificationStatus, type RiskLevel, type SourcingPathwayCode, type WorkflowInstance } from "@sqms/db";
 import { canonicalJson, DEFAULT_QUALIFICATION_WORKFLOW_MATRIX } from "@sqms/shared";
 import type { Actor } from "../../common/auth/actor";
 import { AccessScope } from "../../common/auth/access-scope";
@@ -280,9 +280,11 @@ export class QualificationsService implements OnModuleInit, WorkflowSubjectHandl
       if (!fai) throw new NotFoundError("First article inspection");
       const q = await this.lockQualification(tx, fai.qualificationId);
       this.assertOpen(q);
-      if (fai.status !== "SUBMITTED") throw new InvalidTransitionError("FAI", fai.status, "reviewed");
+      const current = await tx.firstArticleInspection.findUniqueOrThrow({ where: { id: faiId } });
+      if (current.status !== "SUBMITTED") throw new InvalidTransitionError("FAI", current.status, "reviewed");
       if (fai.createdById === actor.userId) throw new ForbiddenError("You recorded this inspection and cannot review it");
       if (decision === "ACCEPTED" && fai.outcome === "FAIL") throw new BusinessRuleError("A failed FAI cannot be accepted");
+      if (decision === "ACCEPTED" && await tx.inspectionResult.count({ where: { firstArticleId: faiId, outcome: "FAIL" } })) throw new BusinessRuleError("Resolve failed characteristic results through a replacement FAI before acceptance");
       const after = await tx.firstArticleInspection.update({ where: { id: faiId }, data: { status: decision, reviewedById: actor.userId, reviewedAt: new Date(), reviewComment: comment, version: { increment: 1 } } });
       await this.audit.record({ eventType: `qualification.fai_${decision.toLowerCase()}`, entityType: "PRODUCT_QUALIFICATION", entityId: q.id, entityLabel: q.number, reason: comment, metadata: { faiId, number: fai.number } }, tx);
       await this.activity.record(tx, { entityType: "PRODUCT_QUALIFICATION", entityId: q.id, entityLabel: q.number, verb: `fai_${decision.toLowerCase()}`, summary: `FAI ${fai.number} (${fai.outcome}) ${decision.toLowerCase()}`, supplierId: q.supplierId, projectId: q.sourcingProjectId });
@@ -297,8 +299,19 @@ export class QualificationsService implements OnModuleInit, WorkflowSubjectHandl
       if (dto.characteristicId && !(await tx.criticalCharacteristic.findFirst({ where: { id: dto.characteristicId, configurationRevisionId: q.configurationRevisionId } }))) {
         throw new BusinessRuleError("The characteristic does not belong to the configuration revision under qualification");
       }
-      if (dto.firstArticleId && !(await tx.firstArticleInspection.findFirst({ where: { id: dto.firstArticleId, qualificationId: id } }))) throw new BusinessRuleError("The FAI does not belong to this qualification");
-      const r = await tx.inspectionResult.create({ data: { ...dto, qualificationId: id, inspectedById: actor.userId } });
+      if (dto.firstArticleId) {
+        const fai = await tx.firstArticleInspection.findFirst({ where: { id: dto.firstArticleId, qualificationId: id } });
+        if (!fai) throw new BusinessRuleError("The FAI does not belong to this qualification");
+        if (fai.status !== "SUBMITTED") throw new BusinessRuleError("Reviewed FAI results are permanent; record a replacement FAI");
+      }
+      const characteristic = dto.characteristicId ? await tx.criticalCharacteristic.findUniqueOrThrow({ where: { id: dto.characteristicId } }) : null;
+      if (characteristic?.nominal != null && (dto.numericValue != null || dto.measuredValue != null && dto.measuredValue.trim() !== "" && Number.isFinite(Number(dto.measuredValue)))) {
+        const low = characteristic.toleranceMinus == null ? null : Number(characteristic.nominal) - Number(characteristic.toleranceMinus);
+        const high = characteristic.tolerancePlus == null ? null : Number(characteristic.nominal) + Number(characteristic.tolerancePlus);
+        if ((low != null && Number(dto.numericValue ?? dto.measuredValue) < low || high != null && Number(dto.numericValue ?? dto.measuredValue) > high) && dto.outcome !== "FAIL") throw new BusinessRuleError("An out-of-tolerance measurement must be recorded as FAIL");
+      }
+      const specificationSnapshot = characteristic ? JSON.parse(JSON.stringify({ characteristicId: characteristic.id, featureId: characteristic.featureId, name: characteristic.name, nominal: characteristic.nominal, tolerancePlus: characteristic.tolerancePlus, toleranceMinus: characteristic.toleranceMinus, minimum: characteristic.nominal != null && characteristic.toleranceMinus != null ? Number(characteristic.nominal) - Number(characteristic.toleranceMinus) : null, maximum: characteristic.nominal != null && characteristic.tolerancePlus != null ? Number(characteristic.nominal) + Number(characteristic.tolerancePlus) : null, unit: characteristic.unit, method: characteristic.measurementMethod, specification: characteristic.specification, configurationRevisionId: q.configurationRevisionId })) : Prisma.JsonNull;
+      const r = await tx.inspectionResult.create({ data: { ...dto, specificationSnapshot, qualificationId: id, inspectedById: actor.userId } });
       await this.audit.record({ eventType: "qualification.inspection_recorded", entityType: "PRODUCT_QUALIFICATION", entityId: id, entityLabel: q.number, metadata: { resultId: r.id, characteristicId: dto.characteristicId, outcome: dto.outcome } }, tx);
       return r;
     });

@@ -29,7 +29,7 @@ export async function login(page: Page, user: UserKey) {
 
 /** Opens a search-as-you-type picker by its trigger text, searches and selects an option. */
 export async function pick(page: Page, trigger: string | RegExp, search: string, option: string | RegExp) {
-  await page.getByRole("button", { name: trigger }).first().click();
+  await page.getByRole("button", { name: trigger, exact: typeof trigger === "string" }).first().click();
   await page.getByLabel("Search options").fill(search);
   await page.getByRole("option", { name: option }).first().click();
 }

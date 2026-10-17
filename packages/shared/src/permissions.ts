@@ -13,6 +13,14 @@ export interface PermissionDefinition {
 }
 
 export const PERMISSIONS = {
+  INSPECTION_READ: "inspection:read",
+  INSPECTION_WRITE: "inspection:write",
+  INSPECTION_COMPLETE: "inspection:complete",
+  INSPECTION_REOPEN: "inspection:reopen",
+  PLAN_MANAGE: "inspection_plan:manage",
+  INJECTOR_READ: "injector:read",
+  INJECTOR_SYNC: "injector:sync",
+  REPAIR_WRITE: "repair:write",
   SUPPLIER_READ: "supplier:read",
   SUPPLIER_WRITE: "supplier:write",
   SUPPLIER_QUALIFY: "supplier:qualify",
@@ -60,6 +68,14 @@ export const PERMISSIONS = {
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
+  { key: PERMISSIONS.INSPECTION_READ, description: "Read incoming inspections, plans and operational alerts", externalAllowed: false },
+  { key: PERMISSIONS.INSPECTION_WRITE, description: "Create and record incoming inspections", externalAllowed: false },
+  { key: PERMISSIONS.INSPECTION_COMPLETE, description: "Complete incoming inspection records", externalAllowed: false },
+  { key: PERMISSIONS.INSPECTION_REOPEN, description: "Reopen completed incoming inspections with an audited reason", externalAllowed: false },
+  { key: PERMISSIONS.PLAN_MANAGE, description: "Manage and release inspection plan revisions and part specifications", externalAllowed: false },
+  { key: PERMISSIONS.INJECTOR_READ, description: "Read injector tests and permanent repair history", externalAllowed: false },
+  { key: PERMISSIONS.INJECTOR_SYNC, description: "Synchronize recorded/test-safe CarbonZapp reports", externalAllowed: false },
+  { key: PERMISSIONS.REPAIR_WRITE, description: "Record injector repairs, changes and retests", externalAllowed: false },
   { key: PERMISSIONS.SUPPLIER_READ, description: "View suppliers, sites, contacts and certifications", externalAllowed: true },
   { key: PERMISSIONS.SUPPLIER_WRITE, description: "Create and edit suppliers, sites, contacts and certifications", externalAllowed: false },
   { key: PERMISSIONS.SUPPLIER_QUALIFY, description: "Initiate and record supplier qualification decisions", externalAllowed: false },
@@ -105,6 +121,9 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
 ];
 
 export const ROLE_KEYS = {
+  INSPECTOR: "INSPECTOR",
+  QUALITY_MANAGER: "QUALITY_MANAGER",
+  TEST_LAB: "TEST_LAB",
   SYSTEM_ADMIN: "SYSTEM_ADMIN",
   ENGINEERING: "ENGINEERING",
   SUPPLIER_QUALITY: "SUPPLIER_QUALITY",
@@ -128,11 +147,24 @@ export interface RoleDefinition {
 
 const P = PERMISSIONS;
 const ALL_READ: PermissionKey[] = [
+  P.INSPECTION_READ, P.INJECTOR_READ,
   P.SUPPLIER_READ, P.PRODUCT_READ, P.PROJECT_READ, P.DOCUMENT_READ, P.QUALIFICATION_READ, P.CHANGE_READ,
   P.DEVIATION_READ, P.NCR_READ, P.SCAR_READ, P.TASK_READ, P.REPORT_READ, P.COMMENT_INTERNAL,
 ];
 
 export const ROLE_DEFINITIONS: RoleDefinition[] = [
+  {
+    key: ROLE_KEYS.INSPECTOR, name: "Inspector", description: "Incoming inspection, evidence and NCR creation.", scope: "INTERNAL",
+    permissions: [P.INSPECTION_READ, P.INSPECTION_WRITE, P.INSPECTION_COMPLETE, P.NCR_READ, P.NCR_WRITE, P.DOCUMENT_READ, P.PRODUCT_READ, P.SUPPLIER_READ, P.TASK_READ, P.TASK_WRITE, P.COMMENT_INTERNAL, P.REPORT_READ, P.REPORT_EXPORT],
+  },
+  {
+    key: ROLE_KEYS.QUALITY_MANAGER, name: "Quality Manager", description: "Operational quality authority; user administration is separate.", scope: "INTERNAL",
+    permissions: [...ALL_READ, P.INSPECTION_WRITE, P.INSPECTION_COMPLETE, P.INSPECTION_REOPEN, P.PLAN_MANAGE, P.COMMENT_INTERNAL, P.NCR_WRITE, P.NCR_DISPOSITION, P.SCAR_WRITE, P.SCAR_CLOSE, P.QUALIFICATION_WRITE, P.SUPPLIER_QUALIFY, P.DOCUMENT_WRITE, P.DOCUMENT_RELEASE, P.TASK_WRITE, P.REPORT_EXPORT, P.AUDIT_READ],
+  },
+  {
+    key: ROLE_KEYS.TEST_LAB, name: "Test Lab", description: "Injector test synchronization and repair recording.", scope: "INTERNAL",
+    permissions: [P.INJECTOR_READ, P.INJECTOR_SYNC, P.REPAIR_WRITE, P.INSPECTION_READ, P.INSPECTION_WRITE, P.INSPECTION_COMPLETE, P.PRODUCT_READ, P.SUPPLIER_READ, P.COMMENT_INTERNAL, P.DOCUMENT_READ, P.REPORT_READ, P.REPORT_EXPORT, P.TASK_READ],
+  },
   {
     key: ROLE_KEYS.SYSTEM_ADMIN,
     name: "System Administrator",
@@ -146,6 +178,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     description: "Owns engineering definitions, baselines, delta specifications and change impact assessment.",
     scope: "INTERNAL",
     permissions: [
+      P.PLAN_MANAGE,
       ...ALL_READ, P.PRODUCT_WRITE, P.CONFIGURATION_WRITE, P.PROJECT_WRITE, P.PROJECT_WAIVE_CONDITIONAL,
       P.DOCUMENT_WRITE, P.DOCUMENT_RELEASE, P.DOCUMENT_SHARE, P.QUALIFICATION_WRITE, P.CHANGE_SUBMIT, P.CHANGE_REVIEW,
       P.DEVIATION_WRITE, P.NCR_WRITE, P.APPROVAL_DECIDE, P.TASK_WRITE, P.REPORT_EXPORT,
@@ -157,6 +190,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     description: "Owns supplier qualification, product qualification, NCR/SCAR and change control.",
     scope: "INTERNAL",
     permissions: [
+      P.INSPECTION_WRITE, P.INSPECTION_COMPLETE, P.INSPECTION_REOPEN, P.PLAN_MANAGE,
       ...ALL_READ, P.SUPPLIER_WRITE, P.SUPPLIER_QUALIFY, P.PRODUCT_WRITE, P.CONFIGURATION_WRITE, P.PROJECT_WRITE,
       P.PROJECT_WAIVE_CONDITIONAL, P.PROJECT_WAIVE_MANDATORY, P.DOCUMENT_WRITE, P.DOCUMENT_RELEASE, P.DOCUMENT_SHARE,
       P.QUALIFICATION_WRITE, P.CHANGE_SUBMIT, P.CHANGE_REVIEW, P.DEVIATION_WRITE, P.NCR_WRITE, P.NCR_DISPOSITION,

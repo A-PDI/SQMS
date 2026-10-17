@@ -54,6 +54,10 @@ export class DeviationListQuery extends PageQueryDto {
 // ------------------------------------------------------------------ nonconformance reports (OPS-06)
 
 export class CreateNcrDto {
+  @IsOptional() @IsString() @MaxLength(200) purchaseOrder?: string;
+  @IsOptional() @IsUUID() incomingInspectionId?: string;
+  @IsOptional() @IsUUID() firstArticleId?: string;
+  @IsOptional() @IsUUID() testRecordId?: string;
   @ApiProperty() @IsString() @MinLength(3) @MaxLength(250) title: string;
   @IsDateOnly() dateIdentified: string;
   @ApiProperty({ enum: NCR_SOURCE }) @IsIn([...NCR_SOURCE]) source: (typeof NCR_SOURCE)[number];

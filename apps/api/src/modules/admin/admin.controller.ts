@@ -11,6 +11,7 @@ import {
   AuditQuery,
   CreatePolicyVersionDto,
   CreateRoleDto,
+  CreateLocalUserDto,
   EvaluatePolicyDto,
   InvitationListQuery,
   InviteUserDto,
@@ -38,6 +39,12 @@ export class AdminController {
   ) {}
 
   // users & invitations ------------------------------------------------------
+
+  @Post("users/local")
+  @RequirePermissions(P.ADMIN_USERS, P.ADMIN_ROLES)
+  createLocal(@CurrentActor() actor: Actor, @Body() dto: CreateLocalUserDto) {
+    return this.users.createLocal(actor, dto);
+  }
 
   @Get("users")
   @RequirePermissions(P.ADMIN_USERS)

@@ -1,0 +1,9 @@
+# Render-specific MySQL settings (loaded after infra/mysql/conf/sqms.cnf).
+[mysqld]
+# The persistent disk is mounted at /var/lib/mysql and can contain lost+found, which MySQL refuses to initialize
+# over. Keeping the data directory one level down means initialization always starts from an empty directory.
+datadir = /var/lib/mysql/data
+# Sized for a 512 MB instance: the performance schema alone reserves well over 100 MB.
+performance_schema = OFF
+innodb_buffer_pool_size = 128M
+max_connections = 60

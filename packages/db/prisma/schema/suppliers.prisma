@@ -88,6 +88,7 @@ model Supplier {
   @@index([name])
   @@fulltext([name, legalName, supplierNumber])
   @@map("suppliers")
+  incomingInspections IncomingInspection[]
 }
 
 model SupplierAddress {
@@ -141,6 +142,7 @@ model SupplierSite {
 
   @@unique([supplierId, siteCode])
   @@map("supplier_sites")
+  incomingInspections IncomingInspection[]
 }
 
 model Contact {

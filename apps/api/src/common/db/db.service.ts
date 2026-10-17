@@ -11,6 +11,7 @@ export interface AfterCommit {
 
 /** Tables that may be row-locked with lockRow (fixed allow-list; never interpolate user input). */
 const LOCKABLE = new Set([
+  "inspection_plans", "inspection_plan_revisions", "incoming_inspections", "injector_tests", "injector_repair_cases", "injector_repair_attempts", "feature_identities",
   "workflow_instances",
   "document_records",
   "document_revisions",

@@ -17,3 +17,7 @@ e2e/test-results
 e2e/.auth
 infra/data
 docs
+
+migration-work
+attachments
+tools

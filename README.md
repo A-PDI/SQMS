@@ -1,5 +1,7 @@
 # Supplier Quality Management System (SQMS)
 
+The unified internal PDI QMS candidate adds incoming inspections, connected NCR/recurrence workflows, injector testing and repairs, drawings, reporting and repeatable legacy migration. Start with the [implementation and acceptance package](docs/unified-qms/README.md) for the feature matrix, validation evidence, administrator guidance and prepared cutover/rollback procedures. Operational cutover and confirmed Render acceptance remain separate release gates.
+
 SQMS manages how a heavy-duty diesel engine component business sources, qualifies, approves and controls products
 from external suppliers. It keeps one controlled record of suppliers, products and their exact configurations,
 generates the document checklist each sourcing project needs, drives reviews and approvals, and controls supplier
@@ -47,7 +49,8 @@ Optional fictional demo data for evaluation (set `DEMO_USER_PASSWORD` first):
 `docker compose --env-file .env.compose --profile demo run --rm seed-demo`.
 Mail sent by the system is visible in Mailpit at http://127.0.0.1:8025.
 
-For development with hot reload see [docs/development.md](docs/development.md).
+For development with hot reload see [docs/development.md](docs/development.md). A test environment on Render can be
+created from `render.yaml` ([docs/deployment.md](docs/deployment.md#render-test-environment)).
 
 ## Technology
 

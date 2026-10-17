@@ -1,0 +1,217 @@
+{
+  "recordedOn": "2026-10-16",
+  "branch": "codex/unified-qms",
+  "sqmsBaseline": "bf9be7f74957d3ef2e9befbdabb034b828871a1d",
+  "sourceCommit": "6c53d829a5e69ff095975cddc41d419c4b812ada",
+  "scope": "Isolated local fixtures only; no operational dataset or verified Render service",
+  "baselineTests": {
+    "api": 73,
+    "shared": 29,
+    "serverCore": 7,
+    "worker": 7,
+    "failures": 0
+  },
+  "finalTests": {
+    "api": {
+      "passed": 106,
+      "suites": 17
+    },
+    "chromium": {
+      "passed": 10
+    },
+    "shared": {
+      "passed": 29
+    },
+    "legacyDomain": {
+      "passed": 85
+    },
+    "serverCore": {
+      "passed": 7
+    },
+    "worker": {
+      "passed": 11
+    },
+    "totalPassed": 248
+  },
+  "typecheck": "passed",
+  "hostProductionBuilds": [
+    "shared",
+    "db",
+    "server-core",
+    "api",
+    "worker",
+    "web"
+  ],
+  "prismaDrift": "No difference detected",
+  "newMigrations": 8,
+  "migrationFixture": {
+    "name": "repository-seed-fixture",
+    "unchangedSourceCopyHashVerified": true,
+    "steps": [
+      {
+        "mode": "dry-run",
+        "expectedExitCode": 3,
+        "fixtureOnly": true,
+        "sourceCounts": {
+          "users": 1,
+          "inspection_templates": 13,
+          "part_specs": 0,
+          "inspections": 3,
+          "inspection_notes": 0,
+          "inspection_activity_log": 18,
+          "inspection_attachments": 2,
+          "ncrs": 0,
+          "engineering_drawings": 0,
+          "quality_alerts": 0,
+          "saved_reports": 0
+        },
+        "totals": {
+          "MAPPED": 34,
+          "UNRESOLVED": 3
+        },
+        "targetCounts": {
+          "inspections": 0,
+          "ncrs": 0,
+          "injectorTests": 0,
+          "repairCases": 0,
+          "files": 0
+        },
+        "unresolvedMappings": 0,
+        "durationMs": 251,
+        "businessChecks": 0,
+        "failedBusinessChecks": 0,
+        "attachments": 0,
+        "unreadableAttachments": 0
+      },
+      {
+        "mode": "import",
+        "expectedExitCode": 3,
+        "fixtureOnly": true,
+        "sourceCounts": {
+          "users": 1,
+          "inspection_templates": 13,
+          "part_specs": 0,
+          "inspections": 3,
+          "inspection_notes": 0,
+          "inspection_activity_log": 18,
+          "inspection_attachments": 2,
+          "ncrs": 0,
+          "engineering_drawings": 0,
+          "quality_alerts": 0,
+          "saved_reports": 0
+        },
+        "totals": {
+          "MAPPED": 34,
+          "UNRESOLVED": 3
+        },
+        "targetCounts": {
+          "inspections": 3,
+          "ncrs": 0,
+          "injectorTests": 0,
+          "repairCases": 0,
+          "files": 2
+        },
+        "unresolvedMappings": 3,
+        "durationMs": 1558,
+        "businessChecks": 0,
+        "failedBusinessChecks": 0,
+        "attachments": 0,
+        "unreadableAttachments": 0
+      },
+      {
+        "mode": "import",
+        "expectedExitCode": 3,
+        "fixtureOnly": true,
+        "sourceCounts": {
+          "users": 1,
+          "inspection_templates": 13,
+          "part_specs": 0,
+          "inspections": 3,
+          "inspection_notes": 0,
+          "inspection_activity_log": 18,
+          "inspection_attachments": 2,
+          "ncrs": 0,
+          "engineering_drawings": 0,
+          "quality_alerts": 0,
+          "saved_reports": 0
+        },
+        "totals": {
+          "UNCHANGED": 37
+        },
+        "targetCounts": {
+          "inspections": 3,
+          "ncrs": 0,
+          "injectorTests": 0,
+          "repairCases": 0,
+          "files": 2
+        },
+        "unresolvedMappings": 3,
+        "durationMs": 270,
+        "businessChecks": 0,
+        "failedBusinessChecks": 0,
+        "attachments": 0,
+        "unreadableAttachments": 0
+      },
+      {
+        "mode": "validate",
+        "expectedExitCode": 3,
+        "fixtureOnly": true,
+        "sourceCounts": {
+          "users": 1,
+          "inspection_templates": 13,
+          "part_specs": 0,
+          "inspections": 3,
+          "inspection_notes": 0,
+          "inspection_activity_log": 18,
+          "inspection_attachments": 2,
+          "ncrs": 0,
+          "engineering_drawings": 0,
+          "quality_alerts": 0,
+          "saved_reports": 0
+        },
+        "totals": {
+          "UNCHANGED": 37
+        },
+        "targetCounts": {
+          "inspections": 3,
+          "ncrs": 0,
+          "injectorTests": 0,
+          "repairCases": 0,
+          "files": 2
+        },
+        "unresolvedMappings": 3,
+        "durationMs": 353,
+        "businessChecks": 37,
+        "failedBusinessChecks": 0,
+        "attachments": 2,
+        "unreadableAttachments": 0
+      }
+    ],
+    "exceptions": [
+      "Three inspections have unresolved supplier/site attribution and unknown historical template versions"
+    ]
+  },
+  "restore": {
+    "database": "sqms_unified_restore_test",
+    "tables": 111,
+    "rows": 7947,
+    "allTableCountsVerified": true,
+    "objects": 234,
+    "objectBytes": 48670125,
+    "everyRestoredObjectHashVerified": true,
+    "cleanFileMetadataAndHashesVerified": 46,
+    "ncrOriginsIntact": true,
+    "auditUpdateBlocked": true,
+    "releasedPlanChangeBlocked": true,
+    "restoreGrantsReapplied": true
+  },
+  "releaseGatesOpen": [
+    "Copied operational SQLite/database plus matching uploads and reviewed mappings",
+    "Confirmed isolated Render service/resource identities and acceptance",
+    "Actual PDI register/templates and operator sign-off",
+    "Clean Docker image build and container persistence acceptance on a host with sufficient free disk"
+  ],
+  "portalEnabled": false,
+  "productionCutoverPerformed": false,
+  "operationalQmsChanged": false
+}

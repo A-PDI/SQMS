@@ -116,6 +116,9 @@ enum NcrSeverity {
 }
 
 enum NcrSource {
+  FIRST_ARTICLE
+  ENGINEERING_VALIDATION
+  INTERNAL
   INCOMING_INSPECTION
   IN_PROCESS
   FINAL_INSPECTION
@@ -251,6 +254,7 @@ model InspectionResult {
   sampleIdentifier        String?           @db.VarChar(80)
   measuredValue           String?           @db.VarChar(200)
   numericValue            Decimal?          @db.Decimal(18, 6)
+  specificationSnapshot   Json?
   outcome                 InspectionOutcome
   notes                   String?           @db.Text
   inspectedById           String            @db.Char(36)
@@ -260,6 +264,7 @@ model InspectionResult {
   inspectionRequirement InspectionRequirement?  @relation(fields: [inspectionRequirementId], references: [id])
   characteristic        CriticalCharacteristic? @relation(fields: [characteristicId], references: [id])
   firstArticle          FirstArticleInspection? @relation(fields: [firstArticleId], references: [id])
+  defectLines           NcrDefectLine[]
 
   @@index([qualificationId])
   @@index([firstArticleId])
@@ -294,6 +299,7 @@ model TestRecord {
 
   @@index([qualificationId, status])
   @@map("test_records")
+  nonconformances Nonconformance[]
 }
 
 model FirstArticleInspection {
@@ -322,6 +328,7 @@ model FirstArticleInspection {
 
   @@index([qualificationId, status])
   @@map("first_article_inspections")
+  nonconformances Nonconformance[]
 }
 
 /// Release snapshot: the exact configuration revision, document revisions and evidence used for approval.
@@ -510,17 +517,18 @@ model Nonconformance {
   title                   String          @db.VarChar(250)
   dateIdentified          DateTime        @db.Date
   source                  NcrSource
-  supplierId              String          @db.Char(36)
+  supplierId              String?         @db.Char(36)
   siteId                  String?         @db.Char(36)
-  internalPartId          String          @db.Char(36)
+  internalPartId          String?         @db.Char(36)
   supplierPartId          String?         @db.Char(36)
   supplierProductId       String?         @db.Char(36)
   configurationRevisionId String?         @db.Char(36)
   characteristicId        String?         @db.Char(36)
   qualificationId         String?         @db.Char(36)
   lotNumber               String?         @db.VarChar(80)
+  purchaseOrder           String?         @db.VarChar(200)
   serialNumbers           String?         @db.Text
-  quantityAffected        Int
+  quantityAffected        Int?
   quantityInspected       Int?
   defectDescription       String          @db.Text
   expectedSpecification   String?         @db.Text
@@ -536,27 +544,27 @@ model Nonconformance {
   status                  NcrStatus       @default(OPEN)
   /// Blocking nonconformances prevent product approval until resolved or formally dispositioned.
   blocksApproval          Boolean         @default(true)
-  ownerId                 String          @db.Char(36)
+  ownerId                 String?         @db.Char(36)
   /// Internal-only investigation notes; never exposed to supplier users.
   internalNotes           String?         @db.Text
   supplierVisible         Boolean         @default(false)
   closedById              String?         @db.Char(36)
   closedAt                DateTime?       @db.DateTime(3)
   closureComment          String?         @db.Text
-  createdById             String          @db.Char(36)
+  createdById             String?         @db.Char(36)
   createdAt               DateTime        @default(now()) @db.DateTime(3)
   updatedAt               DateTime        @updatedAt @db.DateTime(3)
   version                 Int             @default(0)
 
-  supplier              Supplier                @relation(fields: [supplierId], references: [id])
+  supplier              Supplier?               @relation(fields: [supplierId], references: [id])
   site                  SupplierSite?           @relation(fields: [siteId], references: [id])
-  internalPart          InternalPart            @relation(fields: [internalPartId], references: [id])
+  internalPart          InternalPart?           @relation(fields: [internalPartId], references: [id])
   supplierPart          SupplierPart?           @relation(fields: [supplierPartId], references: [id])
   supplierProduct       SupplierProduct?        @relation(fields: [supplierProductId], references: [id])
   configurationRevision ConfigurationRevision?  @relation(fields: [configurationRevisionId], references: [id])
   characteristic        CriticalCharacteristic? @relation(fields: [characteristicId], references: [id])
   qualification         ProductQualification?   @relation(fields: [qualificationId], references: [id])
-  owner                 User                    @relation("NcrOwner", fields: [ownerId], references: [id])
+  owner                 User?                   @relation("NcrOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   correctiveActions     CorrectiveAction[]
   deviations            Deviation[]             @relation("DeviationNcr")
 
@@ -565,6 +573,19 @@ model Nonconformance {
   @@index([status, dateIdentified])
   @@fulltext([number, title])
   @@map("nonconformances")
+  incomingInspectionId String? @db.Char(36)
+  firstArticleId String? @db.Char(36)
+  testRecordId String? @db.Char(36)
+  legacyException Json?
+  incomingInspection IncomingInspection? @relation(fields: [incomingInspectionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  firstArticle FirstArticleInspection? @relation(fields: [firstArticleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  testRecord TestRecord? @relation(fields: [testRecordId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  defectLines NcrDefectLine[]
+  reportSections NcrReportSection[]
+  scarLinks NcrScarLink[]
+  recurrenceCandidates RecurrenceReview[] @relation("CurrentRecurrence")
+  recurrenceHistory RecurrenceReview[] @relation("HistoricalRecurrence")
+  sourceCommand QualityCommand?
 }
 
 /// Supplier Corrective Action Request (SCAR).
@@ -609,6 +630,7 @@ model CorrectiveAction {
   @@index([status, responseDueDate])
   @@fulltext([number, title])
   @@map("corrective_actions")
+  ncrLinks NcrScarLink[]
 }
 
 /// Supplier response to a SCAR using structured 8D sections. Each resubmission is a new revision.

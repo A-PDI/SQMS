@@ -1,3 +1,4 @@
+import { AuthorizeInService } from "../../common/auth/decorators";
 import { Controller, Get, Param, Query, Res } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { PERMISSIONS as P } from "@sqms/shared";
@@ -25,6 +26,7 @@ export class InsightsController {
   }
 
   @Get("search")
+  @AuthorizeInService()
   @AudienceScope("any")
   @ApiOperation({ summary: "Global search across records the user may access" })
   search(@CurrentActor() actor: Actor, @Query() q: SearchQuery) {

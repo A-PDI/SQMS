@@ -5,6 +5,8 @@ ARG GO_IMAGE=golang:1.24.13-alpine
 ARG ALPINE_IMAGE=alpine:3.22
 ARG MINIO_VERSION=v0.0.0-20260212201848-7aac2a2c5b7c
 ARG MC_VERSION=v0.0.0-20251106162529-77f82e18b540
+# Image variant: minio (Compose) or minio-render (render.yaml; MinIO and bucket provisioning in one container).
+ARG SQMS_MINIO_IMAGE=minio
 
 FROM ${GO_IMAGE} AS build
 ARG MINIO_VERSION
@@ -17,7 +19,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go install -trimpath -ldflags "-s -w" "github.com/minio/minio@${MINIO_VERSION}" \
  && go install -trimpath -ldflags "-s -w" "github.com/minio/mc@${MC_VERSION}"
 
-FROM ${ALPINE_IMAGE}
+FROM ${ALPINE_IMAGE} AS minio
 RUN addgroup -S minio && adduser -S -G minio -h /home/minio minio && mkdir -p /data && chown minio:minio /data
 COPY --from=build /out/minio /out/mc /usr/local/bin/
 COPY init-bucket.sh /usr/local/bin/sqms-init-bucket
@@ -25,3 +27,11 @@ USER minio
 EXPOSE 9000 9001
 ENTRYPOINT ["minio"]
 CMD ["server", "/data", "--console-address", ":9001"]
+
+FROM minio AS minio-render
+USER root
+COPY --chmod=0755 render-start.sh /usr/local/bin/sqms-minio-render
+ENTRYPOINT ["sqms-minio-render"]
+CMD []
+
+FROM ${SQMS_MINIO_IMAGE} AS selected

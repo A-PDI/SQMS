@@ -74,7 +74,7 @@ export function UsersPanel() {
           { key: "status", label: "Status", options: ["INVITED", "ACTIVE", "DISABLED"].map((s) => ({ value: s, label: humanize(s) })) },
           { key: "roleKey", label: "Role", options: roleOptions },
         ]}
-        toolbar={<InviteUser roles={roles.data ?? []} />}
+        toolbar={<div className="flex gap-2"><CreateLocalUser roles={roles.data ?? []} /><InviteUser roles={roles.data ?? []} /></div>}
         columns={[
           {
             key: "name",
@@ -211,6 +211,14 @@ function UserRolesDialog({ user, roles, onClose, onDone }: { user: UserRow; role
       </DialogContent>
     </Dialog>
   );
+}
+
+function CreateLocalUser({ roles }: { roles: RoleRow[] }) {
+  const { can } = useSession(); const qc = useQueryClient(); const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState(""); const [name, setName] = useState(""); const [password, setPassword] = useState(""); const [selected, setSelected] = useState<string[]>([]); const [error, setError] = useState<unknown>(null); const [busy, setBusy] = useState(false);
+  if (!can("admin:users", "admin:roles")) return null;
+  const create = async () => { setBusy(true); setError(null); try { await api("/admin/users/local", { method: "POST", body: { email, displayName: name, password, roleKeys: selected } }); setPassword(""); setEmail(""); setName(""); setSelected([]); setOpen(false); await qc.invalidateQueries({ queryKey: ["admin-users"] }); toast.success("Local account created"); } catch (e) { setError(e); } finally { setBusy(false); } };
+  return <><Button onClick={() => setOpen(true)}>Create local account</Button><Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setPassword(""); }}><DialogContent title="Create internal local account" description="Provision an employee account directly. Share the initial password through your established internal process."><div className="space-y-3"><Field label="Display name"><Input value={name} onChange={e => setName(e.target.value)} /></Field><Field label="Email / login"><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></Field><Field label="Initial password" hint="At least 12 characters and three character classes."><Input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} /></Field><fieldset className="space-y-2"><legend className="mb-2 text-sm font-medium">Internal roles</legend>{roles.filter(r => r.scope === "INTERNAL").map(r => <label key={r.key} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selected.includes(r.key)} onChange={e => setSelected(s => e.target.checked ? [...s, r.key] : s.filter(k => k !== r.key))} />{r.name}</label>)}</fieldset><ErrorAlert error={error} /></div><DialogFooter><Button variant="outline" onClick={() => { setOpen(false); setPassword(""); }}>Cancel</Button><Button disabled={busy || !email || name.length < 2 || password.length < 12 || !selected.length} onClick={() => void create()}>Create account</Button></DialogFooter></DialogContent></Dialog></>;
 }
 
 function InviteUser({ roles }: { roles: RoleRow[] }) {

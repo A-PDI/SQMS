@@ -46,7 +46,7 @@ describe("Supplier data isolation, persistence and concurrency", () => {
   });
 
   it("keeps internal-only endpoints closed to supplier users", async () => {
-    for (const path of [`/suppliers/${b.supplierId}`, "/suppliers", "/suppliers/export.csv", "/products", "/sourcing-projects", "/qualifications", "/approvals/inbox", "/audit", "/admin/users", "/dashboard", "/reports/approved-suppliers", "/change-requests/export.csv", "/ncrs/export.csv"]) {
+    for (const path of [`/suppliers/${b.supplierId}`, "/suppliers", "/suppliers/export.csv", "/products", "/sourcing-projects", "/qualifications", "/approvals/inbox", "/audit", "/admin/users", "/dashboard", "/incoming-inspections", "/inspection-plans", "/injector-tests", "/injector-repairs", "/inspection-reports", "/quality-alerts", "/quality-signals", "/drawings", "/injector-sheet-exports", "/reports/approved-suppliers", "/change-requests/export.csv", "/ncrs/export.csv"]) {
       const res = await userA.get(path);
       expect({ path, status: res.status }).toEqual({ path, status: 403 });
     }

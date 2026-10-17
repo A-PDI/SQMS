@@ -18,6 +18,7 @@ export const SETTING_SCHEMAS = {
   "workflow.preventSelfApproval": z.boolean(),
   "qualification.workflowMatrix": z.record(z.enum(SOURCING_PATHWAY), z.record(z.enum(RISK_LEVEL), workflowKey)),
   "scar.defaultResponseDays": z.number().int().min(1).max(365),
+  "qms.recurrence.lookbackDays": z.number().int().min(1).max(36500),
   "scar.escalationDays": z.array(days).min(1).max(5),
   "certifications.expiryAlertDays": z.array(days).min(1).max(5),
   "tasks.reminderLeadHours": z.number().int().min(1).max(720),

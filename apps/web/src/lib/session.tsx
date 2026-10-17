@@ -29,7 +29,7 @@ export interface Me {
   roles: string[];
   permissions: string[];
   csrfToken: string;
-  features: { supplierPortal: boolean };
+  features: { supplierPortal: boolean; carbonZappMode?: string; injectorSheetMode?: string };
   branding: Branding;
 }
 

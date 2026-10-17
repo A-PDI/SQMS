@@ -5,7 +5,7 @@ import { APP_ENV } from "../../infra/tokens";
 import { RequestContext } from "../context/request-context";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "../errors/app-errors";
 import { csrfTokenValid } from "./csrf";
-import { ANY_PERMISSIONS_KEY, AUDIENCE_KEY, PERMISSIONS_KEY, PUBLIC_KEY, type Audience, type AuthenticatedRequest } from "./decorators";
+import { ANY_PERMISSIONS_KEY, AUDIENCE_KEY, PERMISSIONS_KEY, PUBLIC_KEY, SERVICE_AUTHORIZED_KEY, type Audience, type AuthenticatedRequest } from "./decorators";
 import { SessionService } from "./session.service";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -34,6 +34,7 @@ export class SessionGuard implements CanActivate {
     const actor = req.actor;
     if (!actor) throw new UnauthorizedError();
 
+    if (actor.userType === "EXTERNAL" && !this.env.SUPPLIER_PORTAL_ENABLED) throw new NotFoundError("Resource");
     const audience = this.reflector.getAllAndOverride<Audience>(AUDIENCE_KEY, [ctx.getHandler(), ctx.getClass()]) ?? "internal";
     if (audience === "external") {
       // The supplier portal API does not exist while the feature flag is off.
@@ -103,12 +104,16 @@ export class PermissionsGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(ctx: ExecutionContext): boolean {
+    if (this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, [ctx.getHandler(), ctx.getClass()])) return true;
     const required = this.reflector.getAllAndMerge<string[]>(PERMISSIONS_KEY, [ctx.getClass(), ctx.getHandler()]) ?? [];
     const anyOf = this.reflector.getAllAndOverride<string[]>(ANY_PERMISSIONS_KEY, [ctx.getHandler(), ctx.getClass()]) ?? [];
-    if (!required.length && !anyOf.length) return true;
     const req = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
     const actor = req.actor;
     if (!actor) throw new UnauthorizedError();
+    if (!required.length && !anyOf.length) {
+      if (this.reflector.getAllAndOverride<boolean>(SERVICE_AUTHORIZED_KEY, [ctx.getHandler(), ctx.getClass()])) return true;
+      throw new ForbiddenError("Endpoint has no declared authorization policy");
+    }
     const missing = required.filter((p) => !actor.permissions.has(p));
     if (missing.length) throw new ForbiddenError(`Missing permission: ${missing.join(", ")}`);
     if (anyOf.length && !anyOf.some((p) => actor.permissions.has(p))) throw new ForbiddenError(`Requires one of: ${anyOf.join(", ")}`);

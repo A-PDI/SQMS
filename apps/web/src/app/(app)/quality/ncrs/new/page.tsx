@@ -15,7 +15,7 @@ import { toOptions } from "@/lib/options";
 const FIELDS: FieldSpec[] = [
   { name: "title", label: "Title", required: true, minLength: 3, maxLength: 250, wide: true },
   { name: "dateIdentified", label: "Date identified", type: "date", required: true },
-  { name: "source", label: "Source", type: "select", required: true, options: toOptions(NCR_SOURCE) },
+  { name: "source", label: "Source", type: "select", required: true, options: toOptions(NCR_SOURCE.filter(v => !["FIRST_ARTICLE", "INCOMING_INSPECTION", "ENGINEERING_VALIDATION"].includes(v))) },
   { name: "severity", label: "Severity", type: "select", required: true, options: toOptions(NCR_SEVERITY) },
   { name: "lotNumber", label: "Lot / batch", maxLength: 80 },
   { name: "quantityAffected", label: "Quantity affected", type: "number", required: true, integer: true, min: 1 },
@@ -78,10 +78,10 @@ function NewNcr() {
             </Field>
             {!source && !spFromQuery && (
               <>
-                <Field label="Supplier" required>
+                <Field label="Supplier, if known">
                   <AsyncPicker<{ id: string; name: string; supplierNumber: string }> endpoint="/suppliers" value={supplier} onChange={setSupplier} map={(s) => ({ id: s.id, label: s.name, sublabel: s.supplierNumber })} />
                 </Field>
-                <Field label="Part" required>
+                <Field label="Part, if known">
                   <AsyncPicker<{ id: string; partNumber: string; description: string }> endpoint="/products" value={part} onChange={setPart} map={(p) => ({ id: p.id, label: p.partNumber, sublabel: p.description })} />
                 </Field>
               </>
@@ -90,17 +90,16 @@ function NewNcr() {
           <SchemaForm
             columns={2}
             fields={FIELDS}
-            defaultValues={{ dateIdentified: new Date().toISOString().slice(0, 10), source: qualificationId ? "QUALIFICATION" : "INCOMING_INSPECTION", severity: "MAJOR", blocksApproval: true }}
+            defaultValues={{ dateIdentified: new Date().toISOString().slice(0, 10), source: qualificationId ? "QUALIFICATION" : "OTHER", severity: "MAJOR", blocksApproval: true }}
             submitLabel="Create NCR"
             onCancel={() => router.back()}
             onSubmit={async (payload) => {
               const spId = source?.id ?? spFromQuery;
-              if (!spId && (!supplier || !part)) throw new Error("Select the supplier product, or the supplier and the part");
               const created = await api<{ id: string }>("/ncrs", {
                 method: "POST",
                 body: {
                   ...payload,
-                  ...(spId ? { supplierProductId: spId } : { supplierId: supplier!.id, internalPartId: part!.id }),
+                  ...(spId ? { supplierProductId: spId } : { ...(supplier ? { supplierId: supplier.id } : {}), ...(part ? { internalPartId: part.id } : {}) }),
                   ...(owner ? { ownerId: owner.id } : {}),
                   ...(qualificationId ? { qualificationId } : {}),
                 },

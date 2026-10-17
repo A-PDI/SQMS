@@ -1,3 +1,7 @@
+import { InjectorSheetModule } from "./operations/sheet.controller";
+import { OperationalReportsModule } from "./operations/reports.controller";
+import { DrawingsModule } from "./operations/drawings.controller";
+import { SpecificationsModule } from "./operations/specifications.controller";
 import { Module } from "@nestjs/common";
 import { AdminModule } from "./admin/admin.module";
 import { AuthModule } from "./auth/auth.module";
@@ -16,8 +20,10 @@ import { QualityModule } from "./quality/quality.module";
 import { SourcingModule } from "./sourcing/sourcing.module";
 import { SuppliersModule } from "./suppliers/suppliers.module";
 import { WorkflowModule } from "./workflow/workflow.module";
+import { OperationsModule } from "./operations/operations.controller";
+import { ConnectedQualityModule } from "./operations/connected-quality.controller";
 
 @Module({ controllers: [HealthController] })
 class HealthModule {}
 
-export const FEATURE_MODULES = [HealthModule, AuthModule, WorkflowModule, SuppliersModule, ProductsModule, ConfigurationsModule, FilesModule, DocumentTypesModule, DocumentsModule, SourcingModule, QualificationsModule, ChangeRequestsModule, QualityModule, CollaborationModule, AdminModule, InsightsModule, PortalModule];
+export const FEATURE_MODULES = [HealthModule, AuthModule, WorkflowModule, SuppliersModule, ProductsModule, ConfigurationsModule, FilesModule, DocumentTypesModule, DocumentsModule, SourcingModule, QualificationsModule, ChangeRequestsModule, QualityModule, CollaborationModule, AdminModule, InsightsModule, PortalModule, OperationsModule, ConnectedQualityModule, SpecificationsModule, DrawingsModule, OperationalReportsModule, InjectorSheetModule];

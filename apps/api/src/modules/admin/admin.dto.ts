@@ -35,6 +35,13 @@ export class UserListQuery extends PageQueryDto {
   @ApiPropertyOptional() @IsOptional() @Matches(ROLE_KEY) roleKey?: string;
 }
 
+export class CreateLocalUserDto {
+  @IsEmail() @MaxLength(254) email: string;
+  @IsString() @MinLength(2) @MaxLength(160) displayName: string;
+  @IsString() @MinLength(12) @MaxLength(256) password: string;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(20) @Matches(ROLE_KEY, { each: true }) roleKeys: string[];
+}
+
 export class UpdateUserDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(2) @MaxLength(160) displayName?: string;
   @ApiPropertyOptional() @IsOptional() @EmptyToNull() @IsString() @MaxLength(120) jobTitle?: string | null;

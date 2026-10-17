@@ -1,3 +1,4 @@
+import { dailyInjectorSheet } from "./injector-sheet";
 import type { MaintenanceJobName } from "@sqms/server-core";
 import { createNotifications, writeSystemAudit } from "@sqms/server-core";
 import type { WorkerContext } from "../context";
@@ -216,6 +217,7 @@ export async function supplierMetrics(ctx: WorkerContext, now = new Date()): Pro
 }
 
 export const MAINTENANCE_HANDLERS: Record<MaintenanceJobName, (ctx: WorkerContext) => Promise<number>> = {
+  "injector-sheet": dailyInjectorSheet,
   "sweep-pending-deliveries": sweepPendingDeliveries,
   "sweep-pending-scans": sweepPendingScans,
   "task-reminders": taskReminders,
@@ -228,6 +230,7 @@ export const MAINTENANCE_HANDLERS: Record<MaintenanceJobName, (ctx: WorkerContex
 
 /** Recurring schedules (BullMQ job schedulers). */
 export const MAINTENANCE_SCHEDULES: { name: MaintenanceJobName; every?: number; pattern?: string }[] = [
+  { name: "injector-sheet", every: 60_000 },
   { name: "sweep-pending-deliveries", every: 60_000 },
   { name: "sweep-pending-scans", every: 120_000 },
   { name: "task-reminders", every: 15 * 60_000 },

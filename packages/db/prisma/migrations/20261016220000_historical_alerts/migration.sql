@@ -1,0 +1,1 @@
+ALTER TABLE `operational_alerts` MODIFY `inspectionId` CHAR(36) NULL, ADD COLUMN `originalPartNumber` VARCHAR(200) NULL, ADD COLUMN `originalSupplier` VARCHAR(250) NULL, ADD COLUMN `triggeredById` CHAR(36) NULL;

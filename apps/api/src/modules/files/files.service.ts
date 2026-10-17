@@ -12,7 +12,7 @@ import { AccessScope } from "../../common/auth/access-scope";
 import { AuditService } from "../../common/audit/audit.service";
 import { ActivityService } from "../../common/audit/activity.service";
 import { DbService, type Tx } from "../../common/db/db.service";
-import { AppError, BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from "../../common/errors/app-errors";
+import { AppError, BusinessRuleError, ConflictError, ForbiddenError, NotFoundError, StaleVersionError } from "../../common/errors/app-errors";
 import { SettingsService } from "../../common/services/settings.service";
 import { EntityAccessService } from "../entity/entity-access.service";
 
@@ -20,6 +20,8 @@ const MB = 1024 * 1024;
 
 /** Permissions that allow uploading files (each upload must still be attached to a record the user may edit). */
 export const UPLOAD_PERMISSIONS = [
+  "inspection:write",
+  "repair:write",
   "document:write",
   "document_type:manage",
   "ncr:write",
@@ -250,24 +252,28 @@ export class FilesService {
     if (!file || file.deletedAt) throw new NotFoundError("File");
     const scope = AccessScope.of(actor);
     if (file.uploadedById === actor.userId) return file;
-    if (scope.isInternal) {
-      if (!actor.permissions.has("document:read")) throw new NotFoundError("File");
-      return file;
-    }
+
     // External (supplier) users.
-    if (file.ownerOrganizationId === actor.organizationId) return file;
+    if (!scope.isInternal && file.ownerOrganizationId === actor.organizationId) return file;
     const revisionLinks = await this.db.client.documentRevisionFile.findMany({
       where: { fileObjectId: fileId },
       include: { revision: { include: { document: { include: { documentType: true, shares: { where: { organizationId: actor.organizationId, revokedAt: null } } } } } } },
     });
     for (const link of revisionLinks) {
       const doc = link.revision.document;
+      if (scope.isInternal) {
+        if (actor.permissions.has("document:read")) {
+          await this.entities.assertReadable(actor, "DOCUMENT", doc.id);
+          return file;
+        }
+        continue;
+      }
       if (doc.ownerOrganizationId === actor.organizationId) return file;
       const sharedReleased =
         doc.shares.length > 0 && doc.documentType.supplierVisibility !== "INTERNAL_ONLY" && link.revision.status === "RELEASED" && doc.releasedRevisionId === link.revisionId;
       if (sharedReleased) return file;
     }
-    const attachments = await this.db.client.recordAttachment.findMany({ where: { fileObjectId: fileId, visibility: "SUPPLIER", removedAt: null } });
+    const attachments = await this.db.client.recordAttachment.findMany({ where: { fileObjectId: fileId, ...(scope.isInternal ? {} : { visibility: "SUPPLIER" as const }), removedAt: null } });
     for (const a of attachments) {
       try {
         await this.entities.assertReadable(actor, a.entityType, a.entityId);
@@ -279,7 +285,7 @@ export class FilesService {
     const template = await this.db.client.templateRevision.findFirst({
       where: { fileObjectId: fileId, status: "EFFECTIVE", template: { status: "ACTIVE", documentType: { supplierVisibility: { not: "INTERNAL_ONLY" }, status: "ACTIVE" } } },
     });
-    if (template) return file;
+    if (template && actor.permissions.has("document:read")) return file;
     throw new NotFoundError("File");
   }
 
@@ -319,6 +325,68 @@ export class FilesService {
 
   // ------------------------------------------------------------------ record attachments (evidence on operational records)
 
+  private async assertWritable(tx: Tx, actor: Actor, type: EntityType, id: string) {
+    const permissions: Partial<Record<EntityType, string>> = {
+      INCOMING_INSPECTION: "inspection:write", INJECTOR_TEST: "injector:sync", INJECTOR_REPAIR: "repair:write",
+      SUPPLIER: "supplier:write", SUPPLIER_SITE: "supplier:write", INTERNAL_PART: "product:write", SUPPLIER_PRODUCT: "product:write",
+      CONFIGURATION_REVISION: "configuration:write", SOURCING_PROJECT: "project:write", PRODUCT_QUALIFICATION: "qualification:write",
+      FIRST_ARTICLE_INSPECTION: "qualification:write", CHANGE_REQUEST: "change:submit", DEVIATION: "deviation:write", NCR: "ncr:write", SCAR: actor.userType === "EXTERNAL" ? "scar:respond" : "scar:write",
+    };
+    const permission = permissions[type];
+    const documentEvidence = actor.userType === "INTERNAL" && ["SUPPLIER", "SUPPLIER_SITE", "INTERNAL_PART", "SUPPLIER_PRODUCT"].includes(type) && actor.permissions.has("document:write");
+    if (!permission || !actor.permissions.has(permission) && !documentEvidence) throw new ForbiddenError("Editing this record's evidence requires write permission");
+    await this.entities.assertReadable(actor, type, id, tx);
+    if (type === "INCOMING_INSPECTION") {
+      await this.db.lockRow(tx, "incoming_inspections", id);
+      const r = await tx.incomingInspection.findUniqueOrThrow({ where: { id } });
+      if (!["DRAFT", "IN_PROGRESS"].includes(r.status)) throw new ConflictError("Reopen the inspection with a reason before changing evidence");
+    }
+    if (type === "NCR") {
+      await this.db.lockRow(tx, "nonconformances", id);
+      const r = await tx.nonconformance.findUniqueOrThrow({ where: { id } });
+      if (!["OPEN", "CONTAINED", "UNDER_INVESTIGATION"].includes(r.status)) throw new ConflictError("Controlled NCR evidence cannot be changed after disposition or closure");
+    }
+    if (type === "CONFIGURATION_REVISION") {
+      await this.db.lockRow(tx, "configuration_revisions", id);
+      const r = await tx.configurationRevision.findUniqueOrThrow({ where: { id } });
+      if (r.status !== "DRAFT" && r.status !== "PROPOSED") throw new ConflictError("Controlled configuration evidence is immutable");
+    }
+    if (type === "INJECTOR_REPAIR") {
+      await this.db.lockRow(tx, "injector_repair_cases", id); const r = await tx.injectorRepairCase.findUniqueOrThrow({ where: { id } });
+      if (!["OPEN", "HOLD", "ENGINEERING_REVIEW"].includes(r.status)) throw new ConflictError("Completed repair evidence is controlled history");
+    }
+    if (type === "PRODUCT_QUALIFICATION") {
+      await this.db.lockRow(tx, "product_qualifications", id); const r = await tx.productQualification.findUniqueOrThrow({ where: { id } });
+      if (["APPROVED", "REJECTED"].includes(r.status)) throw new ConflictError("Completed qualification evidence is controlled history");
+    }
+    if (type === "FIRST_ARTICLE_INSPECTION") {
+      const first = await tx.firstArticleInspection.findUniqueOrThrow({ where: { id } });
+      await this.db.lockRow(tx, "product_qualifications", first.qualificationId);
+      const r = await tx.firstArticleInspection.findUniqueOrThrow({ where: { id } });
+      if (["ACCEPTED", "REJECTED"].includes(r.status)) throw new ConflictError("Reviewed FAI evidence is controlled history");
+    }
+    if (type === "SCAR") {
+      await this.db.lockRow(tx, "corrective_actions", id); const r = await tx.correctiveAction.findUniqueOrThrow({ where: { id } });
+      if (["CLOSED", "CANCELLED"].includes(r.status)) throw new ConflictError("Closed corrective-action evidence is controlled history");
+    }
+  }
+
+  private async attachmentContext(tx: Tx, type: EntityType, id: string, context?: Record<string, unknown>) {
+    if (!context) return undefined;
+    if (JSON.stringify(context).length > 5000) throw new BusinessRuleError("Attachment context is too large");
+    const allowed = new Set(["sectionKey", "rowId", "itemPosition", "reportSectionId"]);
+    if (Object.keys(context).some(k => !allowed.has(k))) throw new BusinessRuleError("Unsupported attachment context field");
+    if (type === "INCOMING_INSPECTION" && context.itemPosition != null) {
+      const r = await tx.incomingInspection.findUniqueOrThrow({ where: { id } }); const position = context.itemPosition;
+      if (typeof position !== "number" || !Number.isInteger(position) || position < 0 || position >= r.itemCount) throw new BusinessRuleError("Photo item position is outside this inspection");
+    }
+    if (context.reportSectionId) {
+      if (type !== "NCR" || typeof context.reportSectionId !== "string" || !await tx.ncrReportSection.findFirst({ where: { id: context.reportSectionId, ncrId: id, archivedAt: null } })) throw new BusinessRuleError("Photo section does not belong to this NCR report");
+    }
+    for (const key of ["sectionKey", "rowId"]) if (context[key] != null && (typeof context[key] !== "string" || String(context[key]).length > 100)) throw new BusinessRuleError("Invalid photo section or row identifier");
+    return context as import("@sqms/db").Prisma.InputJsonValue;
+  }
+
   async listAttachments(actor: Actor, entityType: EntityType, entityId: string) {
     await this.entities.assertReadable(actor, entityType, entityId);
     const scope = AccessScope.of(actor);
@@ -327,16 +395,18 @@ export class FilesService {
       orderBy: { addedAt: "asc" },
       include: { file: true },
     });
-    return rows.map((r) => ({ id: r.id, description: r.description, visibility: r.visibility, addedAt: r.addedAt, addedById: r.addedById, file: publicFile(r.file) }));
+    return rows.map((r) => ({ id: r.id, version: r.version, description: r.description, context: r.context, visibility: r.visibility, addedAt: r.addedAt, addedById: r.addedById, file: publicFile(r.file) }));
   }
 
-  async addAttachment(actor: Actor, input: { entityType: EntityType; entityId: string; fileId: string; description?: string; visibility?: "INTERNAL" | "SUPPLIER" }) {
+  async addAttachment(actor: Actor, input: { entityType: EntityType; entityId: string; fileId: string; description?: string; visibility?: "INTERNAL" | "SUPPLIER"; context?: Record<string, unknown> }) {
     const ref = await this.entities.assertReadable(actor, input.entityType, input.entityId);
     const scope = AccessScope.of(actor);
     const visibility = scope.isInternal ? input.visibility ?? "INTERNAL" : "SUPPLIER";
     return this.db.tx(async (tx) => {
+      await this.assertWritable(tx, actor, input.entityType, input.entityId);
+      const context = await this.attachmentContext(tx, input.entityType, input.entityId, input.context);
       await this.assertAttachable(tx, actor, [input.fileId]);
-      const att = await tx.recordAttachment.create({ data: { entityType: input.entityType, entityId: input.entityId, fileObjectId: input.fileId, description: input.description ?? null, visibility, addedById: actor.userId } });
+      const att = await tx.recordAttachment.create({ data: { entityType: input.entityType, entityId: input.entityId, fileObjectId: input.fileId, description: input.description ?? null, visibility, context, addedById: actor.userId } });
       await this.audit.record({ eventType: "attachment.added", entityType: input.entityType, entityId: input.entityId, entityLabel: ref.label, metadata: { fileId: input.fileId, visibility } }, tx);
       await this.activity.record(tx, { entityType: input.entityType, entityId: input.entityId, entityLabel: ref.label, verb: "attachment_added", summary: `Attachment added${input.description ? `: ${input.description}` : ""}`, visibility, supplierId: ref.supplierId });
       return att;
@@ -349,8 +419,20 @@ export class FilesService {
     const ref = await this.entities.assertReadable(actor, att.entityType, att.entityId);
     if (!AccessScope.of(actor).isInternal && att.addedById !== actor.userId) throw new NotFoundError("Attachment");
     return this.db.tx(async (tx) => {
+      await this.assertWritable(tx, actor, att.entityType, att.entityId);
       await tx.recordAttachment.update({ where: { id: attachmentId }, data: { removedAt: new Date(), removedById: actor.userId } });
       await this.audit.record({ eventType: "attachment.removed", entityType: att.entityType, entityId: att.entityId, entityLabel: ref.label, metadata: { fileId: att.fileObjectId } }, tx);
+    });
+  }
+  async editAttachment(actor: Actor, id: string, input: { expectedVersion: number; description?: string; context?: Record<string, unknown> }) {
+    return this.db.tx(async tx => {
+      const a = await tx.recordAttachment.findUnique({ where: { id } }); if (!a || a.removedAt) throw new NotFoundError("Attachment");
+      await this.assertWritable(tx, actor, a.entityType, a.entityId);
+      const context = await this.attachmentContext(tx, a.entityType, a.entityId, input.context);
+      const changed = await tx.recordAttachment.updateMany({ where: { id, version: input.expectedVersion, removedAt: null }, data: { description: input.description, context, version: { increment: 1 } } });
+      if (!changed.count) throw new StaleVersionError("Attachment");
+      await this.audit.record({ eventType: "attachment.caption_updated", entityType: a.entityType, entityId: a.entityId, metadata: { attachmentId: id, previous: { description: a.description, context: a.context } } }, tx);
+      return tx.recordAttachment.findUniqueOrThrow({ where: { id } });
     });
   }
 }

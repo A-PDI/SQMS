@@ -20,6 +20,7 @@ export interface EmailJob {
 }
 
 export type MaintenanceJobName =
+  | "injector-sheet"
   | "sweep-pending-deliveries"
   | "sweep-pending-scans"
   | "task-reminders"
