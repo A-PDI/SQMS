@@ -43,33 +43,89 @@ export default function SuppliersPage() {
         }
       />
       <DataTable<SupplierRow>
+        tableLabel="Suppliers"
         endpoint="/suppliers"
         queryKey="suppliers"
         savedViewsModule="suppliers"
         exportPath="/suppliers/export.csv"
         searchPlaceholder="Name, number, DUNS"
         rowHref={(r) => `/suppliers/${r.id}`}
-        filters={[{ key: "status", label: "Status", options: toOptions(SUPPLIER_STATUS) }]}
+        filters={[
+          {
+            key: "status",
+            label: "Status",
+            options: toOptions(SUPPLIER_STATUS),
+          },
+        ]}
         columns={[
-          { key: "name", header: "Supplier", sortKey: "name", cell: (r) => r.name },
-          { key: "number", header: "Number", sortKey: "supplierNumber", cell: (r) => <span className="font-mono text-xs">{r.supplierNumber}</span> },
-          { key: "status", header: "Status", sortKey: "status", cell: (r) => <StatusBadge status={r.status} /> },
-          { key: "country", header: "Country", sortKey: "country", cell: (r) => countryName(r.country) },
-          { key: "sites", header: "Sites", cell: (r) => r.siteCount },
-          { key: "approved", header: "Approved products", cell: (r) => r.approvedProductCount },
+          {
+            key: "name",
+            header: "Supplier",
+            sortKey: "name",
+            cell: (r) => r.name,
+          },
+          {
+            key: "number",
+            header: "Number",
+            sortKey: "supplierNumber",
+            cell: (r) => (
+              <span className="font-mono text-xs">{r.supplierNumber}</span>
+            ),
+          },
+          {
+            key: "status",
+            header: "Status",
+            sortKey: "status",
+            cell: (r) => <StatusBadge status={r.status} />,
+          },
+          {
+            key: "country",
+            header: "Country",
+            sortKey: "country",
+            cell: (r) => countryName(r.country),
+          },
+          {
+            key: "sites",
+            header: "Sites",
+            className: "text-right",
+            cell: (r) => r.siteCount,
+          },
+          {
+            key: "approved",
+            header: "Approved products",
+            className: "text-right",
+            cell: (r) => r.approvedProductCount,
+          },
           {
             key: "quality",
             header: "Open quality items",
             cell: (r) => (
               <span className="flex gap-1">
-                {r.openNcrCount > 0 && <Badge tone="warning">{r.openNcrCount} NCR</Badge>}
-                {r.openScarCount > 0 && <Badge tone="pending">{r.openScarCount} SCAR</Badge>}
-                {r.pendingChangeCount > 0 && <Badge tone="info">{r.pendingChangeCount} change</Badge>}
-                {!r.openNcrCount && !r.openScarCount && !r.pendingChangeCount && <span className="text-muted-foreground">-</span>}
+                {r.openNcrCount > 0 && (
+                  <Badge tone="warning">{r.openNcrCount} NCR</Badge>
+                )}
+                {r.openScarCount > 0 && (
+                  <Badge tone="pending">{r.openScarCount} SCAR</Badge>
+                )}
+                {r.pendingChangeCount > 0 && (
+                  <Badge tone="info">{r.pendingChangeCount} change</Badge>
+                )}
+                {!r.openNcrCount &&
+                  !r.openScarCount &&
+                  !r.pendingChangeCount && (
+                    <span className="text-muted-foreground">-</span>
+                  )}
               </span>
             ),
           },
-          { key: "cert", header: "Next certificate expiry", cell: (r) => (r.nextCertificationExpiry ? `${r.nextCertificationExpiry.standard} · ${formatDate(r.nextCertificationExpiry.expiresAt)}` : "-") },
+          {
+            key: "cert",
+            header: "Next certificate expiry",
+            cell: (r) =>
+              r.nextCertificationExpiry
+                ? `${r.nextCertificationExpiry.standard} · ${formatDate(r.nextCertificationExpiry.expiresAt)}`
+                : "-",
+          },
         ]}
       />
     </>

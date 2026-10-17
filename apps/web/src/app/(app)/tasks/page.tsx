@@ -38,7 +38,13 @@ interface TaskRow {
 export default function TasksPage() {
   const { can, isInternal } = useSession();
   const qc = useQueryClient();
-  const summary = useQuery({ queryKey: ["tasks-summary"], queryFn: () => api<{ open: number; overdue: number; approvals: number }>("/tasks/summary") });
+  const summary = useQuery({
+    queryKey: ["tasks-summary"],
+    queryFn: () =>
+      api<{ open: number; overdue: number; approvals: number }>(
+        "/tasks/summary",
+      ),
+  });
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["tasks"] });
     void summary.refetch();
@@ -61,20 +67,68 @@ export default function TasksPage() {
           isInternal &&
           can("task:write") && (
             <FormDialog
-              trigger={<Button><Plus /> New task</Button>}
+              trigger={
+                <Button>
+                  <Plus /> New task
+                </Button>
+              }
               title="New task"
               columns={2}
               fields={[
-                { name: "title", label: "Title", required: true, minLength: 3, maxLength: 300, wide: true },
-                { name: "type", label: "Type", type: "select", required: true, options: toOptions(["ACTION", "REVIEW", "INFO_REQUEST", "FOLLOW_UP"]) },
-                { name: "priority", label: "Priority", type: "select", options: toOptions(PRIORITY) },
-                { name: "assigneeRoleKey", label: "Assign to role", type: "select", options: toOptions(["SOURCING", "ENGINEERING", "SUPPLIER_QUALITY", "APPROVER", "ADMIN"]) },
+                {
+                  name: "title",
+                  label: "Title",
+                  required: true,
+                  minLength: 3,
+                  maxLength: 300,
+                  wide: true,
+                },
+                {
+                  name: "type",
+                  label: "Type",
+                  type: "select",
+                  required: true,
+                  options: toOptions([
+                    "ACTION",
+                    "REVIEW",
+                    "INFO_REQUEST",
+                    "FOLLOW_UP",
+                  ]),
+                },
+                {
+                  name: "priority",
+                  label: "Priority",
+                  type: "select",
+                  options: toOptions(PRIORITY),
+                },
+                {
+                  name: "assigneeRoleKey",
+                  label: "Assign to role",
+                  type: "select",
+                  options: toOptions([
+                    "SOURCING",
+                    "ENGINEERING",
+                    "SUPPLIER_QUALITY",
+                    "APPROVER",
+                    "ADMIN",
+                  ]),
+                },
                 { name: "dueAt", label: "Due", type: "datetime" },
-                { name: "description", label: "Description", type: "textarea", maxLength: 10000 },
+                {
+                  name: "description",
+                  label: "Description",
+                  type: "textarea",
+                  maxLength: 10000,
+                },
               ]}
               defaultValues={{ type: "ACTION", priority: "NORMAL" }}
               onSubmit={async (payload) => {
-                const body = { ...payload, ...(payload.dueAt ? { dueAt: new Date(String(payload.dueAt)).toISOString() } : {}) };
+                const body = {
+                  ...payload,
+                  ...(payload.dueAt
+                    ? { dueAt: new Date(String(payload.dueAt)).toISOString() }
+                    : {}),
+                };
                 await api("/tasks", { method: "POST", body });
                 toast.success("Task created");
                 refresh();
@@ -94,7 +148,11 @@ export default function TasksPage() {
           <Card>
             <CardBody className="py-3">
               <p className="text-xs text-muted-foreground">Overdue</p>
-              <p className={`text-xl font-semibold ${summary.data.overdue ? "text-destructive" : ""}`}>{summary.data.overdue}</p>
+              <p
+                className={`text-xl font-semibold ${summary.data.overdue ? "text-destructive" : ""}`}
+              >
+                {summary.data.overdue}
+              </p>
             </CardBody>
           </Card>
           <Card>
@@ -103,7 +161,10 @@ export default function TasksPage() {
               <p className="text-xl font-semibold">
                 {summary.data.approvals}{" "}
                 {summary.data.approvals > 0 && (
-                  <Link className="text-xs font-normal text-accent hover:underline" href="/approvals">
+                  <Link
+                    className="text-xs font-normal text-accent hover:underline"
+                    href="/approvals"
+                  >
                     Open inbox
                   </Link>
                 )}
@@ -118,19 +179,36 @@ export default function TasksPage() {
         savedViewsModule="tasks"
         searchPlaceholder="Search tasks"
         filters={[
-          { key: "scope", label: "Scope", options: [{ value: "mine", label: "Assigned to me" }, { value: "created", label: "Created by me" }, ...(isInternal ? [{ value: "all", label: "All tasks" }] : [])] },
+          {
+            key: "scope",
+            label: "Scope",
+            options: [
+              { value: "mine", label: "Assigned to me" },
+              { value: "created", label: "Created by me" },
+              ...(isInternal ? [{ value: "all", label: "All tasks" }] : []),
+            ],
+          },
           { key: "status", label: "Status", options: toOptions(TASK_STATUS) },
-          { key: "overdue", label: "Overdue", options: [{ value: "true", label: "Overdue only" }] },
+          {
+            key: "overdue",
+            label: "Overdue",
+            options: [{ value: "true", label: "Overdue only" }],
+          },
         ]}
         columns={[
           {
             key: "title",
             header: "Task",
+            wrap: true,
             sortKey: "title",
             cell: (t) => (
               <div className="min-w-56">
                 <span className="font-medium">{t.title}</span>
-                {t.description && <p className="line-clamp-2 text-xs text-muted-foreground">{t.description}</p>}
+                {t.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">
+                    {t.description}
+                  </p>
+                )}
               </div>
             ),
           },
@@ -139,7 +217,10 @@ export default function TasksPage() {
             key: "record",
             header: "Record",
             cell: (t) => {
-              const href = t.type === "APPROVAL" ? "/approvals" : entityHref(t.entityType, t.entityId);
+              const href =
+                t.type === "APPROVAL"
+                  ? "/approvals"
+                  : entityHref(t.entityType, t.entityId);
               return href ? (
                 <Link className="text-accent hover:underline" href={href}>
                   {t.entityLabel ?? humanize(t.entityType ?? "")}
@@ -149,37 +230,88 @@ export default function TasksPage() {
               );
             },
           },
-          { key: "assignee", header: "Assigned to", cell: (t) => <span className="text-xs">{t.assignee?.displayName ?? (t.assigneeRoleKey ? `${humanize(t.assigneeRoleKey)} role` : "Supplier")}</span> },
-          { key: "priority", header: "Priority", sortKey: "priority", cell: (t) => <Badge tone={t.priority === "URGENT" ? "danger" : t.priority === "HIGH" ? "warning" : "muted"}>{humanize(t.priority)}</Badge> },
+          {
+            key: "assignee",
+            header: "Assigned to",
+            cell: (t) => (
+              <span className="text-xs">
+                {t.assignee?.displayName ??
+                  (t.assigneeRoleKey
+                    ? `${humanize(t.assigneeRoleKey)} role`
+                    : "Supplier")}
+              </span>
+            ),
+          },
+          {
+            key: "priority",
+            header: "Priority",
+            sortKey: "priority",
+            cell: (t) => (
+              <Badge
+                tone={
+                  t.priority === "URGENT"
+                    ? "danger"
+                    : t.priority === "HIGH"
+                      ? "warning"
+                      : "muted"
+                }
+              >
+                {humanize(t.priority)}
+              </Badge>
+            ),
+          },
           {
             key: "due",
             header: "Due",
             sortKey: "dueAt",
             cell: (t) => (
-              <span className={`text-xs ${t.overdue ? "text-destructive" : ""}`}>
+              <span
+                className={`text-xs ${t.overdue ? "text-destructive" : ""}`}
+              >
                 {formatDateTime(t.dueAt)}
                 {t.overdue && " (overdue)"}
               </span>
             ),
           },
-          { key: "status", header: "Status", sortKey: "status", cell: (t) => <StatusBadge status={t.status} /> },
+          {
+            key: "status",
+            header: "Status",
+            sortKey: "status",
+            cell: (t) => <StatusBadge status={t.status} />,
+          },
           {
             key: "actions",
             header: "",
             cell: (t) =>
-              t.type === "APPROVAL" || t.type === "DOCUMENT_SUBMISSION" ? null : (
+              t.type === "APPROVAL" ||
+              t.type === "DOCUMENT_SUBMISSION" ? null : (
                 <span className="flex justify-end gap-1">
                   {t.status === "OPEN" && (
-                    <Button size="icon" variant="ghost" aria-label="Start task" onClick={() => void setStatus(t, "IN_PROGRESS")}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Start task"
+                      onClick={() => void setStatus(t, "IN_PROGRESS")}
+                    >
                       <Play />
                     </Button>
                   )}
                   {(t.status === "OPEN" || t.status === "IN_PROGRESS") && (
                     <>
-                      <Button size="icon" variant="ghost" aria-label="Mark done" onClick={() => void setStatus(t, "DONE")}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Mark done"
+                        onClick={() => void setStatus(t, "DONE")}
+                      >
                         <Check />
                       </Button>
-                      <Button size="icon" variant="ghost" aria-label="Cancel task" onClick={() => void setStatus(t, "CANCELLED")}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Cancel task"
+                        onClick={() => void setStatus(t, "CANCELLED")}
+                      >
                         <X />
                       </Button>
                     </>

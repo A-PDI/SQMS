@@ -25,13 +25,40 @@ interface PartRow {
 }
 
 const PART_FIELDS = [
-  { name: "partNumber", label: "Internal part number", required: true, minLength: 2, maxLength: 60 },
-  { name: "description", label: "Description", required: true, minLength: 2, maxLength: 500 },
-  { name: "criticality", label: "Criticality", type: "select" as const, options: toOptions(PART_CRITICALITY) },
-  { name: "designOwnership", label: "Design ownership", type: "select" as const, options: toOptions(["COMPANY", "SUPPLIER", "SHARED"]) },
+  {
+    name: "partNumber",
+    label: "Internal part number",
+    required: true,
+    minLength: 2,
+    maxLength: 60,
+  },
+  {
+    name: "description",
+    label: "Description",
+    required: true,
+    minLength: 2,
+    maxLength: 500,
+  },
+  {
+    name: "criticality",
+    label: "Criticality",
+    type: "select" as const,
+    options: toOptions(PART_CRITICALITY),
+  },
+  {
+    name: "designOwnership",
+    label: "Design ownership",
+    type: "select" as const,
+    options: toOptions(["COMPANY", "SUPPLIER", "SHARED"]),
+  },
   { name: "engineeringRevision", label: "Engineering revision", maxLength: 20 },
   { name: "unitOfMeasure", label: "Unit of measure", maxLength: 10 },
-  { name: "application", label: "Application", type: "textarea" as const, maxLength: 5000 },
+  {
+    name: "application",
+    label: "Application",
+    type: "textarea" as const,
+    maxLength: 5000,
+  },
 ];
 
 export default function ProductsPage() {
@@ -55,7 +82,10 @@ export default function ProductsPage() {
               fields={PART_FIELDS}
               defaultValues={{ criticality: "MEDIUM", unitOfMeasure: "EA" }}
               onSubmit={async (p) => {
-                const part = await api<{ id: string }>("/products", { method: "POST", body: p });
+                const part = await api<{ id: string }>("/products", {
+                  method: "POST",
+                  body: p,
+                });
                 router.push(`/products/${part.id}`);
               }}
             />
@@ -63,6 +93,7 @@ export default function ProductsPage() {
         }
       />
       <DataTable<PartRow>
+        tableLabel="Parts"
         endpoint="/products"
         queryKey="products"
         savedViewsModule="products"
@@ -71,16 +102,59 @@ export default function ProductsPage() {
         rowHref={(r) => `/products/${r.id}`}
         filters={[
           { key: "status", label: "Status", options: toOptions(PART_STATUS) },
-          { key: "criticality", label: "Criticality", options: toOptions(PART_CRITICALITY) },
+          {
+            key: "criticality",
+            label: "Criticality",
+            options: toOptions(PART_CRITICALITY),
+          },
         ]}
         columns={[
-          { key: "pn", header: "Part number", sortKey: "partNumber", cell: (r) => r.partNumber },
-          { key: "desc", header: "Description", sortKey: "description", cell: (r) => r.description },
-          { key: "crit", header: "Criticality", sortKey: "criticality", cell: (r) => <StatusBadge status={r.criticality} /> },
-          { key: "status", header: "Status", sortKey: "status", cell: (r) => <StatusBadge status={r.status} /> },
-          { key: "src", header: "Approved sources", cell: (r) => (r.approvedSourceCount > 0 ? <Badge tone="success">{r.approvedSourceCount}</Badge> : <span className="text-muted-foreground">0</span>) },
-          { key: "ncr", header: "Open NCRs", cell: (r) => r.openNcrCount || "-" },
-          { key: "chg", header: "Open changes", cell: (r) => r.openChangeCount || "-" },
+          {
+            key: "pn",
+            header: "Part number",
+            sortKey: "partNumber",
+            className: "font-mono text-xs",
+            cell: (r) => r.partNumber,
+          },
+          {
+            key: "desc",
+            header: "Description",
+            sortKey: "description",
+            wrap: true,
+            cell: (r) => r.description,
+          },
+          {
+            key: "crit",
+            header: "Criticality",
+            sortKey: "criticality",
+            cell: (r) => <StatusBadge status={r.criticality} />,
+          },
+          {
+            key: "status",
+            header: "Status",
+            sortKey: "status",
+            cell: (r) => <StatusBadge status={r.status} />,
+          },
+          {
+            key: "src",
+            header: "Approved sources",
+            cell: (r) =>
+              r.approvedSourceCount > 0 ? (
+                <Badge tone="success">{r.approvedSourceCount}</Badge>
+              ) : (
+                <span className="text-muted-foreground">0</span>
+              ),
+          },
+          {
+            key: "ncr",
+            header: "Open NCRs",
+            cell: (r) => r.openNcrCount || "-",
+          },
+          {
+            key: "chg",
+            header: "Open changes",
+            cell: (r) => r.openChangeCount || "-",
+          },
         ]}
       />
     </>

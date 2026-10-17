@@ -2,6 +2,8 @@
 
 The user's latest October 17 direction combines **SQMS navigation and organization with the QMS-Development visual theme**. It supersedes the earlier request to duplicate the original application layout exactly. Existing inspection, NCR and injector workflows remain preserved; navigation and the shared shell may evolve. See [navigation and theme](navigation-theme.md).
 
+The subsequent [engineering workspace refinement](engineering-workspace.md) applies compact, consistent presentation while retaining navy, amber and teal accents. Theme overrides refine control geometry and density; checksum preservation of the original workflow source is not a claim of identical current rendering.
+
 Workflow/theme reference: `A-PDI/QMS-Development` commit `9e534177cc4ebf08e559179bbb2af0b825313ec7`. The architecture assessment supplies context; it does not authorize simplifying an existing operational editor.
 
 The original React screen tree is in `apps/web/src/qms`. Workflow pages, section editors, constants, completion helpers, download prompts and report editors remain copied verbatim. The original Tailwind 3 configuration, stylesheet, logo, Inter family, colors and controls remain the visual standard. Both module sets now use the shared SQMS-style grouped shell; `Layout.jsx` is an explicit integration boundary. The previous flat Sidebar is retained as reference source, rather than rendered.

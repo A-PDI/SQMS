@@ -158,7 +158,7 @@ export function AppShell({
 
   function brand(mobile = false) {
     return (
-      <div className="flex h-24 shrink-0 items-center gap-3 border-b border-white/10 px-5">
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-white/10 px-4">
         <ShellLink
           href={isInternal ? "/" : "/portal"}
           routing={routing}
@@ -169,13 +169,13 @@ export function AppShell({
           <img
             src="/pdi-logo.png"
             alt="PDI"
-            className="h-11 w-14 shrink-0 object-contain"
+            className="h-8 w-10 shrink-0 object-contain"
           />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold tracking-wide text-white">
               {me.branding?.shortName ?? "PDI QMS"}
             </p>
-            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-pdi-steel">
+            <p className="mt-0.5 text-[9px] font-medium uppercase tracking-wider text-pdi-steel">
               Quality Management
             </p>
           </div>
@@ -195,7 +195,7 @@ export function AppShell({
   function navigation(prefix: string) {
     return (
       <nav
-        className="min-h-0 flex-1 overflow-y-auto px-3 py-4"
+        className="min-h-0 flex-1 overflow-y-auto px-2 py-3"
         aria-label="Main navigation"
       >
         <div className="space-y-1">
@@ -211,7 +211,7 @@ export function AppShell({
                   aria-expanded={open}
                   aria-controls={`${prefix}-${section.id}`}
                   className={cn(
-                    "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber",
+                    "workspace-nav-group flex min-h-9 w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[13px] font-semibold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber",
                     current
                       ? "text-pdi-amber-light"
                       : "text-pdi-steel hover:text-white",
@@ -231,7 +231,7 @@ export function AppShell({
                 <ul
                   id={`${prefix}-${section.id}`}
                   hidden={!open}
-                  className="mb-3 ml-5 mt-1 space-y-0.5 border-l border-white/10 pl-2"
+                  className="mb-2 ml-5 mt-0.5 space-y-0.5 border-l border-white/10 pl-2"
                 >
                   {section.items.map((item) => {
                     const selected = active?.item.href === item.href;
@@ -244,7 +244,7 @@ export function AppShell({
                           onNavigate={() => setMobileOpen(false)}
                           aria-current={selected ? "page" : undefined}
                           className={cn(
-                            "flex min-h-10 items-center gap-2.5 rounded-r-lg border-l-2 px-3 py-2 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber",
+                            "workspace-nav-link flex min-h-8 items-center gap-2 rounded-r-md border-l-2 px-2.5 py-1.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber",
                             selected
                               ? "border-pdi-amber bg-white/10 font-semibold text-white"
                               : "border-transparent text-pdi-steel hover:bg-white/5 hover:text-white",
@@ -274,7 +274,7 @@ export function AppShell({
 
   function footer() {
     return (
-      <div className="shrink-0 border-t border-white/10 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+      <div className="shrink-0 border-t border-white/10 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         <p
           className="truncate px-2 text-[11px] text-pdi-steel/70"
           title={me.organization.name}
@@ -285,7 +285,7 @@ export function AppShell({
           type="button"
           onClick={() => void signOut()}
           disabled={signingOut}
-          className="mt-1 flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-sm text-pdi-steel transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber disabled:opacity-50"
+          className="workspace-nav-link mt-1 flex min-h-9 w-full items-center gap-3 rounded-md px-2 text-sm text-pdi-steel transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-amber disabled:opacity-50"
         >
           <LogOut size={16} aria-hidden />
           {signingOut ? "Signing out…" : "Sign Out"}
@@ -296,7 +296,7 @@ export function AppShell({
 
   return (
     <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
-      <div className="flex h-dvh min-h-0 overflow-hidden bg-gray-50 print:block print:h-auto print:overflow-visible">
+      <div className="engineering-workspace flex h-dvh min-h-0 overflow-hidden bg-gray-50 print:block print:h-auto print:overflow-visible">
         <a
           href="#page-content"
           className="sr-only z-[70] rounded-lg bg-white p-3 text-pdi-navy focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
@@ -304,7 +304,7 @@ export function AppShell({
           Skip to content
         </a>
         <aside
-          className="hidden w-64 shrink-0 flex-col bg-gradient-to-b from-pdi-navy to-pdi-navy-light shadow-xl lg:flex print:hidden"
+          className="hidden w-60 shrink-0 flex-col border-r border-pdi-navy-light bg-gradient-to-b from-pdi-navy to-pdi-navy-light lg:flex print:hidden"
           aria-label="Sidebar"
         >
           {brand()}
@@ -312,7 +312,7 @@ export function AppShell({
           {footer()}
         </aside>
         <div className="flex min-w-0 flex-1 flex-col print:block">
-          <header className="shell-topbar z-20 flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm lg:px-6 print:hidden">
+          <header className="shell-topbar z-20 flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-2 lg:px-5 print:hidden">
             <Dialog.Trigger asChild>
               <button
                 type="button"
@@ -331,7 +331,7 @@ export function AppShell({
               </p>
             </div>
             <form
-              className="relative min-w-0 flex-1 lg:ml-6 lg:max-w-md"
+              className="relative min-w-0 flex-1 lg:ml-4 lg:max-w-sm"
               role="search"
               onSubmit={(event) => {
                 event.preventDefault();
@@ -349,14 +349,14 @@ export function AppShell({
                 onChange={(event) => setQ(event.target.value)}
                 placeholder="Search the QMS…"
                 aria-label="Global search"
-                className="min-h-10 w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-pdi-navy focus:bg-white focus:ring-1 focus:ring-pdi-navy"
+                className="workspace-control min-h-9 w-full rounded-md border border-pdi-steel/60 bg-pdi-frost/20 py-1.5 pl-9 pr-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-500 focus:border-pdi-navy focus:bg-white focus:ring-1 focus:ring-pdi-navy"
               />
             </form>
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
               <ShellLink
                 href="/notifications"
                 routing={routing}
-                className="relative rounded-lg p-2 text-pdi-charcoal hover:bg-pdi-frost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-navy"
+                className="workspace-control relative flex min-h-9 min-w-9 items-center justify-center rounded-md p-2 text-pdi-charcoal hover:bg-pdi-frost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-navy"
                 aria-label={`Notifications${unread.data?.unread ? `, ${unread.data.unread} unread` : ""}`}
               >
                 <Bell size={20} />
@@ -368,7 +368,7 @@ export function AppShell({
               </ShellLink>
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex min-h-10 items-center gap-2 rounded-lg p-1 text-pdi-navy hover:bg-pdi-frost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-navy"
+                  className="workspace-control flex min-h-9 items-center gap-2 rounded-md p-1 text-pdi-navy hover:bg-pdi-frost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-navy"
                   aria-label="User menu"
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-pdi-frost text-xs font-semibold">
@@ -411,11 +411,24 @@ export function AppShell({
           </header>
           <main
             id="page-content"
+            data-operational-screen={routing ? "" : undefined}
+            data-dashboard={routing && pathname === "/" ? "" : undefined}
+            data-record-list={
+              routing &&
+              [
+                "/inspections",
+                "/my-inspections",
+                "/ncrs",
+                "/drawings",
+              ].includes(pathname)
+                ? ""
+                : undefined
+            }
             ref={contentRef}
             tabIndex={-1}
             className={cn(
               "shell-content min-h-0 min-w-0 flex-1 overflow-y-auto focus:outline-none print:overflow-visible print:p-0",
-              !routing && "px-4 py-5 lg:px-6 lg:py-6",
+              !routing && "px-4 py-4 lg:px-5",
             )}
           >
             <div
@@ -430,7 +443,7 @@ export function AppShell({
         </div>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-pdi-navy/50 backdrop-blur-sm lg:hidden print:hidden" />
-          <Dialog.Content className="shell-drawer fixed inset-y-0 left-0 z-50 flex w-72 max-w-[calc(100vw-2.5rem)] flex-col bg-gradient-to-b from-pdi-navy to-pdi-navy-light shadow-2xl focus:outline-none lg:hidden print:hidden">
+          <Dialog.Content className="engineering-workspace shell-drawer fixed inset-y-0 left-0 z-50 flex w-72 max-w-[calc(100vw-2.5rem)] flex-col bg-gradient-to-b from-pdi-navy to-pdi-navy-light shadow-2xl focus:outline-none lg:hidden print:hidden">
             <Dialog.Title className="sr-only">Main navigation</Dialog.Title>
             <Dialog.Description className="sr-only">
               Choose a workspace or expand a section to see its pages.

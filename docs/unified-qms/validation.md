@@ -1,5 +1,17 @@
 # Local acceptance evidence
 
+## October 17 engineering workspace refinement
+
+The current presentation combines compact engineering-style density with PDI color and accents; see [engineering workspace](engineering-workspace.md).
+
+- Next.js production build and TypeScript pass, including the source guard (80 unchanged reference files, six declared integration boundaries).
+- All 119 original frontend helper tests pass. Browser-test TypeScript passes.
+- All 14 Chromium tests pass against the separate fictional acceptance stack (55.7 seconds). New coverage exercises dashboard metric filters, supplier filtering/sorting through keyboard record navigation and browser back, and horizontal keyboard scrolling within a touch-enabled mobile table. The prior twelve navigation and business-workflow cases remain covered.
+- Six populated desktop/mobile previews were captured and inspected. Captures wait for populated records rather than treating loading placeholders as acceptance evidence. No page JavaScript errors occurred during capture. Dashboard card color bands align consistently.
+- The web-only refinement introduces no API/schema changes, so API tests were not rerun. API PDFs and operational QMS source/deployment were not changed. The previous API result remains recorded below.
+
+This is local fixture evidence. No Render deployment or full operational acceptance is claimed.
+
 ## October 17 shared navigation iteration
 
 The latest user direction combines SQMS organization with the QMS theme and supersedes exact duplication of the old shell. See [navigation and theme](navigation-theme.md) for the current previews and architecture.
