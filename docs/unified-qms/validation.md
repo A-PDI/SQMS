@@ -1,5 +1,17 @@
 # Local acceptance evidence
 
+## October 17 shared navigation iteration
+
+The latest user direction combines SQMS organization with the QMS theme and supersedes exact duplication of the old shell. See [navigation and theme](navigation-theme.md) for the current previews and architecture.
+
+- The Next.js production build passes, including TypeScript and the source guard: 80 original files match, with six declared integration/layout boundaries.
+- All 119 original frontend helper tests pass. The browser-test TypeScript check passes.
+- The full Chromium suite passes 12/12 tests (55.0 seconds) against the existing separate fictional acceptance stack. Three new tests cover cross-router navigation/back, one active nested tab, the preserved password dialog, mobile Escape/focus/resize handling, read-only visibility and global search. The other nine cover inspection/PDF, NCR photos/captions, NCR/SCAR closure, qualification and supplier change.
+- Four current desktop/mobile screenshots were captured with fictional data and inspected. No page JavaScript errors occurred during capture.
+- This iteration changes frontend layout/navigation only. It introduces no API or database migration changes; the API suite was not rerun for this UI-only change. The 116-test API result below belongs to the preceding contract correction.
+
+No Render deployment or operational-data acceptance was performed for this iteration. The original-versus-integration pixel comparisons below describe the previous exact-shell iteration, not the current intentionally different shell.
+
 ## October 17 reference correction
 
 The original screens supersede the first implementation's replacement editors and shell. See [source parity](source-parity.md), [feature preservation](feature-preservation.md), and [render comparison results](render-comparison.json).

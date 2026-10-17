@@ -83,6 +83,10 @@ test.describe.serial("Original QMS workflows on SQMS", () => {
   }) => {
     await login(page);
     await page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("button", { name: "Inspection", exact: true })
+      .click();
+    await page
       .getByRole("link", { name: "New Inspection", exact: true })
       .click();
     await page.getByPlaceholder("Type or select a part number…").fill(part);
@@ -132,7 +136,7 @@ test.describe.serial("Original QMS workflows on SQMS", () => {
   }) => {
     await login(page);
     await page.goto("/ncrs/new");
-    const fields = page.locator("input[type=text]");
+    const fields = page.locator("#page-content input[type=text]");
     await fields.nth(0).fill(part);
     await page
       .getByPlaceholder("Describe the non-conformance in detail…")
@@ -144,14 +148,11 @@ test.describe.serial("Original QMS workflows on SQMS", () => {
     await page
       .getByPlaceholder("Enter the details for this section…")
       .fill("Original narrative retained verbatim.");
-    await page
-      .locator("input[type=file]")
-      .last()
-      .setInputFiles({
-        name: "evidence.png",
-        mimeType: "image/png",
-        buffer: pixel,
-      });
+    await page.locator("input[type=file]").last().setInputFiles({
+      name: "evidence.png",
+      mimeType: "image/png",
+      buffer: pixel,
+    });
     await page
       .getByRole("textbox", { name: "Caption for photo 1", exact: true })
       .fill("Original caption");

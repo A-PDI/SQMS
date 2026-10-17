@@ -42,7 +42,8 @@
       "source": "client/src/components/Layout.jsx",
       "target": "apps/web/src/qms/components/Layout.jsx",
       "sha256": "cc8260bb71a9c9825bedae645b3a98e863f34336398e3709038234df2ff5ad55",
-      "boundary": false
+      "boundary": true,
+      "reason": "User-authorized shared SQMS navigation layout with the original QMS theme; workflow pages remain unchanged."
     },
     {
       "source": "client/src/components/PartNumberCombobox.jsx",

@@ -1,6 +1,6 @@
 # Remaining work and release gates
 
-> October 17 correction: QMS-Development is the exact workflow and design reference. The earlier replacement UI is superseded. See [reference preservation](feature-preservation.md) and [source parity](source-parity.md); previous “implemented” labels are code availability, not proof of operator or historical-data parity.
+> Latest October 17 direction: use SQMS navigation/organization and the QMS-Development theme, while preserving the operational workflows. See [navigation and theme](navigation-theme.md), [reference preservation](feature-preservation.md) and [source parity](source-parity.md). Earlier “implemented” labels are code availability, not proof of operator or historical-data parity.
 
 The immediate release task is a walkthrough of every used original workflow against the copied operational database and uploads. Include populated custom/miscellaneous forms, all used inspection types, report/PDF samples, drawing versions, bench full-resync/clear and repair episodes, role restrictions, concurrent edits and performance at operational volume. The source port and synthetic checks do not replace that acceptance.
 
