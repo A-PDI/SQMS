@@ -23,6 +23,7 @@ model InspectionPlan {
 }
 
 model InspectionPlanRevision {
+  operationalTemplate OperationalTemplate?
   id             String @id @default(uuid(7)) @db.Char(36)
   planId         String @db.Char(36)
   revision       Int
@@ -217,4 +218,14 @@ model MigrationRun {
   report       Json
   createdAt    DateTime @default(now()) @db.DateTime(3)
   @@map("migration_runs")
+}
+
+/// Stable identity used by the unchanged operational template editor. Editing advances
+/// the current revision; issued definitions and inspection snapshots remain immutable.
+model OperationalTemplate {
+  id                String @id @default(uuid(7)) @db.Char(36)
+  currentRevisionId String @unique @db.Char(36)
+  active            Boolean @default(true)
+  currentRevision   InspectionPlanRevision @relation(fields: [currentRevisionId], references: [id], onDelete: Restrict)
+  @@map("operational_templates")
 }

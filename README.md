@@ -1,5 +1,7 @@
 # Supplier Quality Management System (SQMS)
 
+Existing QMS workflows and appearance follow the direct [QMS-Development reference port](docs/unified-qms/source-parity.md). The original screens are checksum-verified during the web build.
+
 The unified internal PDI QMS candidate adds incoming inspections, connected NCR/recurrence workflows, injector testing and repairs, drawings, reporting and repeatable legacy migration. Start with the [implementation and acceptance package](docs/unified-qms/README.md) for the feature matrix, validation evidence, administrator guidance and prepared cutover/rollback procedures. Operational cutover and confirmed Render acceptance remain separate release gates.
 
 SQMS manages how a heavy-duty diesel engine component business sources, qualifies, approves and controls products

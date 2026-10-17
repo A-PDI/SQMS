@@ -33,6 +33,10 @@ export async function createApp(env: AppEnv): Promise<NestExpressApplication> {
   const strictHelmet = helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'self'"] } }, crossOriginResourcePolicy: { policy: "same-origin" } });
   const docsHelmet = helmet({ contentSecurityPolicy: false });
   app.use((req: Request, res: Response, next: NextFunction) => (req.path.startsWith("/api/docs") ? docsHelmet(req, res, next) : strictHelmet(req, res, next)));
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    if (/^\/api\/(?:attachments|drawings)\//.test(req.url)) req.url = "/api/v1/qms" + req.url.slice(4);
+    next();
+  });
   app.use(cookieParser());
   app.use(requestContextMiddleware);
   app.setGlobalPrefix("api/v1");

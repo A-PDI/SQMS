@@ -512,6 +512,9 @@ model Deviation {
 }
 
 model Nonconformance {
+  /// Original operational report fields that have no structured SQMS equivalent.
+  qmsFields Json?
+  archivedAt DateTime? @db.DateTime(3)
   id                      String          @id @default(uuid(7)) @db.Char(36)
   number                  String          @unique @db.VarChar(40)
   title                   String          @db.VarChar(250)

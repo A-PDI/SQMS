@@ -20,8 +20,8 @@ export async function login(page: Page, user: UserKey) {
   }
   await context.clearCookies();
   await page.goto("/login");
-  await page.locator("#email").fill(USERS[user]);
-  await page.locator("#password").fill(DEMO_PASSWORD);
+  await page.locator("input[type=email]").fill(USERS[user]);
+  await page.locator("input[type=password]").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30_000 });
   sessionCookies.set(user, await context.cookies());

@@ -323,6 +323,6 @@ export class OperationalAlertsController {
     EvidenceService,
     CarbonZappService,
   ],
-  exports: [IncomingService, InjectorService, EvidenceService],
+  exports: [IncomingService, InjectorService, EvidenceService, CarbonZappService],
 })
 export class OperationsModule {}

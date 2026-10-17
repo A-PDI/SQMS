@@ -1,0 +1,529 @@
+{
+  "repository": "A-PDI/QMS-Development",
+  "commit": "9e534177cc4ebf08e559179bbb2af0b825313ec7",
+  "files": [
+    {
+      "source": "client/src/App.jsx",
+      "target": "apps/web/src/qms/App.jsx",
+      "sha256": "c5c5358c565c5bb718a51d74036bbc2788626a05ca716642830eb2a32e802373",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/AuthImage.jsx",
+      "target": "apps/web/src/qms/components/AuthImage.jsx",
+      "sha256": "c91f692dc5f40a57d48e090252b73fcc584d13a8564b8e13abb473283ce15183",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/FileGrid.jsx",
+      "target": "apps/web/src/qms/components/FileGrid.jsx",
+      "sha256": "fefd2d597b8ad7fab619969a4e278eabe7ba7c485ccfba8549590e9f0706995f",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/FileUploadZone.jsx",
+      "target": "apps/web/src/qms/components/FileUploadZone.jsx",
+      "sha256": "1e46cb07fee9de646725a767d99b03b6c781c18c9c58b69caf7525bab74871f9",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/InjectorQuickEntry.jsx",
+      "target": "apps/web/src/qms/components/InjectorQuickEntry.jsx",
+      "sha256": "29daabed59cef15dc71cfee08e2811387a075008a0ad996adcfe24cc0d403ae4",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/InjectorRepairHistory.jsx",
+      "target": "apps/web/src/qms/components/InjectorRepairHistory.jsx",
+      "sha256": "cbe39051a40c90ea061f65fa1c9eaf467ea345e12e70065cd825867998f46464",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/Layout.jsx",
+      "target": "apps/web/src/qms/components/Layout.jsx",
+      "sha256": "cc8260bb71a9c9825bedae645b3a98e863f34336398e3709038234df2ff5ad55",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/PartNumberCombobox.jsx",
+      "target": "apps/web/src/qms/components/PartNumberCombobox.jsx",
+      "sha256": "b9877c69c63fc7560bd57fabe70acd2ac3f86e7cb966f24676eb1c120702cd7e",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/Sidebar.jsx",
+      "target": "apps/web/src/qms/components/Sidebar.jsx",
+      "sha256": "1957f4085aeca85f710dcebecb3ba34c09c08b46c41c1e7a1d549cef8cf45d6a",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/StatusBadge.jsx",
+      "target": "apps/web/src/qms/components/StatusBadge.jsx",
+      "sha256": "326a94e38bdac2fa2c130476d7f8f2a7519ebdfb7a6718a38512968e7aa0b88f",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/AddFireRingModal.jsx",
+      "target": "apps/web/src/qms/components/inspection/AddFireRingModal.jsx",
+      "sha256": "5f62b92451866ce1f64b860e80f1ec53fdd09e4dd29c74cc5f3fd74e9d1ea222",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/ItemAttachment.jsx",
+      "target": "apps/web/src/qms/components/inspection/ItemAttachment.jsx",
+      "sha256": "10ab6cc31d35db7f5ea2fc1eaad5b62ac9c9793112bfed454bbcdea6d911726b",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/MeasurementInput.jsx",
+      "target": "apps/web/src/qms/components/inspection/MeasurementInput.jsx",
+      "sha256": "18f7de74c27c691b0648ee36eb458909ff1135d290bfedbd2b0ed0cf73d44360",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/PFNToggle.jsx",
+      "target": "apps/web/src/qms/components/inspection/PFNToggle.jsx",
+      "sha256": "661c47616bdc27bcfaaad39f9582b0c5b37546c241960ce0c419df113c4046d3",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionCamshaftBore.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionCamshaftBore.jsx",
+      "sha256": "001a4eacd76238ac705ae4df24efc0520950fb0ab22e995caee31cb6257ab5aa",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionChecklist.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionChecklist.jsx",
+      "sha256": "cb24e0101f34d0890ae6bed14312aadf9f5029072dadf2e61c9bbb6a49946622",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionDimensional.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionDimensional.jsx",
+      "sha256": "ea96e17b83d711858da465bf6fd5dc9b168fa8591cedf3f8f1fe671195067997",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionFireRingProtrusion.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionFireRingProtrusion.jsx",
+      "sha256": "2a6f9ba7a86be41ef50c262d5cbefa4b13fe234ce77c358f62374db993e0e71b",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionGeneralMeasurements.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionGeneralMeasurements.jsx",
+      "sha256": "4deab17679ed68b5512d87503c1a20dff47a5c9d00afc929125bcbf68cdb8f33",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionGrooveSpecs.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionGrooveSpecs.jsx",
+      "sha256": "f4f0bde9ccdb89a12a6e0c50fb43e760bc14bfce0a2684ed4e46c3d718c1342c",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionReceiving.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionReceiving.jsx",
+      "sha256": "400431eaf0402e77fc54f44104a678b2bdcae59e5b91c4880f762a4005217a8d",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionVacuumTest.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionVacuumTest.jsx",
+      "sha256": "65913ac81fee016deb5cf06e0ac8fe042f7042be1417c7dd62f163e62f48be19",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionValveRecession.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionValveRecession.jsx",
+      "sha256": "d8a6b427ad2196a58e8833ad2147b332c939ee8983aaca791d3bfce9078d44ed",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/inspection/SectionVisual.jsx",
+      "target": "apps/web/src/qms/components/inspection/SectionVisual.jsx",
+      "sha256": "05c17950bd5c2880ca0cf0c51144aeb72bb317865a9170b065d42e88675cfcf1",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ncr/NcrDeleteDialog.jsx",
+      "target": "apps/web/src/qms/components/ncr/NcrDeleteDialog.jsx",
+      "sha256": "e188130bb6d8977932da415766ce4329a52dd2ecf6382f70cb691d8c2fe35d2c",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ncr/NcrImageEditor.jsx",
+      "target": "apps/web/src/qms/components/ncr/NcrImageEditor.jsx",
+      "sha256": "56447a9203868be30015b21d515e22336a2bb0575f145d9d91bc2dd400c2005a",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ncr/NcrReport.jsx",
+      "target": "apps/web/src/qms/components/ncr/NcrReport.jsx",
+      "sha256": "1e68ebfe97a2af30b4673f6e8cac8b33161e4769c961b6ece2a14a8313a3c3a1",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ncr/NcrSectionEditor.jsx",
+      "target": "apps/web/src/qms/components/ncr/NcrSectionEditor.jsx",
+      "sha256": "d87663015e279f2ca32688d992ceef102eb80b4984a08a20652621c7819a7974",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/badge.jsx",
+      "target": "apps/web/src/qms/components/ui/badge.jsx",
+      "sha256": "208de31e9d799ccf5b6306d3464b405fdfb5071d4c1cab9cf558f663b60522f2",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/button.jsx",
+      "target": "apps/web/src/qms/components/ui/button.jsx",
+      "sha256": "0907315b63fa80ced6bd4f77af6ed4ac3923cd90e2646d43c71677bb0e6e7141",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/card.jsx",
+      "target": "apps/web/src/qms/components/ui/card.jsx",
+      "sha256": "e0f207d2af5f3749374fd49eb347dbc8d2cf6fc7ad809c91a75bcb97a7db7b9b",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/dialog.jsx",
+      "target": "apps/web/src/qms/components/ui/dialog.jsx",
+      "sha256": "b5d2869ed3d3d169cb56c0a8c38652a14a6aa39c769d75474cf6a56e58cf3b38",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/input.jsx",
+      "target": "apps/web/src/qms/components/ui/input.jsx",
+      "sha256": "f742ee8d8763cdd04ec6907ff34aa08d9a5d1df1b7662e042f39d25efc8dc752",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/label.jsx",
+      "target": "apps/web/src/qms/components/ui/label.jsx",
+      "sha256": "f0c935e164aa4a45f3eabb8ca7e0338492a186f9b79749cfb8aa1b80b0df5f8f",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/select.jsx",
+      "target": "apps/web/src/qms/components/ui/select.jsx",
+      "sha256": "27702d8d43f0ba0737c696884cd32bafa65a89090b692e500097fe87093d9dd4",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/separator.jsx",
+      "target": "apps/web/src/qms/components/ui/separator.jsx",
+      "sha256": "31c8ae9b872de9b525338cd063ccbfdcb32a78ec5f80e80ebe1c2a9d8f33ab67",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/textarea.jsx",
+      "target": "apps/web/src/qms/components/ui/textarea.jsx",
+      "sha256": "9fead7bc7157c428825eec0166e0737e51091b38491c32198898fa27c08166eb",
+      "boundary": false
+    },
+    {
+      "source": "client/src/components/ui/toast.jsx",
+      "target": "apps/web/src/qms/components/ui/toast.jsx",
+      "sha256": "f359782ce766ba1677d394788940de182a978ac19c3d44c712e2e794ea44c080",
+      "boundary": false
+    },
+    {
+      "source": "client/src/contexts/ToastContext.jsx",
+      "target": "apps/web/src/qms/contexts/ToastContext.jsx",
+      "sha256": "e91410b39126b77d9339c05473e68a523f98ca761ee424f9c0fe770398cce414",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/useAttachments.js",
+      "target": "apps/web/src/qms/hooks/useAttachments.js",
+      "sha256": "55a2c5052e2f9a0b9cf71557bbd291dc775fdc94f92ffea59a1fb4bf8c8bece1",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/useDrawings.js",
+      "target": "apps/web/src/qms/hooks/useDrawings.js",
+      "sha256": "ee2ed899d426e5139fbcd247e25c302ba5263c91c34cedc180e8a2dc7b02bbb7",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/useInspections.js",
+      "target": "apps/web/src/qms/hooks/useInspections.js",
+      "sha256": "850548ee4c0aa68ffbcc6fc6171ddba7ed170594e03e566beb7ac32793b994c4",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/useNCRs.js",
+      "target": "apps/web/src/qms/hooks/useNCRs.js",
+      "sha256": "74963d858be471d05c91f8db543a1852dce1ca1fa5722cffe3db34b033dbe7db",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/usePartSpecs.js",
+      "target": "apps/web/src/qms/hooks/usePartSpecs.js",
+      "sha256": "090d889f7eb4abf118df6b33d47bb7209ad1fb85b4d3e6371cee882ef35ade0c",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/useQualityAlerts.js",
+      "target": "apps/web/src/qms/hooks/useQualityAlerts.js",
+      "sha256": "17e8716d994972fdcf6169bc923077a18bd684271f2ae60fe29c9ddc26924c87",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/useReports.js",
+      "target": "apps/web/src/qms/hooks/useReports.js",
+      "sha256": "3f710bc3fde3e8798c54e92b5746a3e62bf2e2b4632f1c140c7bd00b4dbcfc99",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/useTemplates.js",
+      "target": "apps/web/src/qms/hooks/useTemplates.js",
+      "sha256": "1ee742990b2a1ad2e7a3a6886ca4260cd09ede8789c06fe7b60e96cc8974d0a7",
+      "boundary": false
+    },
+    {
+      "source": "client/src/hooks/useToast.js",
+      "target": "apps/web/src/qms/hooks/useToast.js",
+      "sha256": "f77d29fd9c394b893ba30ba255a5a0429ac80f0cf9446290b177c6a3c9786a7e",
+      "boundary": false
+    },
+    {
+      "source": "client/src/index.css",
+      "target": "apps/web/src/qms/index.css",
+      "sha256": "c5cfa6ed8c83efc8b2c6acb314ba6a8d2f01c4e8730ac75c532864544ff2886a",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/api.js",
+      "target": "apps/web/src/qms/lib/api.js",
+      "sha256": "d7503999c43d38c2a5e451e00abaaf646643eaf184620df7914db1e5642e1784",
+      "boundary": true
+    },
+    {
+      "source": "client/src/lib/auth.js",
+      "target": "apps/web/src/qms/lib/auth.js",
+      "sha256": "59c17b8048201279473dba79ee0481c53054974f78cafd41d1f321e36cb11cfc",
+      "boundary": true
+    },
+    {
+      "source": "client/src/lib/constants.js",
+      "target": "apps/web/src/qms/lib/constants.js",
+      "sha256": "caa662ffeda69c5fe22332fe60b8db8df477e6e5524966a3d78cea87702e10a3",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/download.js",
+      "target": "apps/web/src/qms/lib/download.js",
+      "sha256": "19c9876b5694949b03b79d8b0cf9dfaf2337de64b3508679cf891d1b758ff044",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/injectorDateTime.js",
+      "target": "apps/web/src/qms/lib/injectorDateTime.js",
+      "sha256": "8a6620eeba8ff6ca924e98601dbfae1276ffe88f21168f0688c487d59c223ae2",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/injectorRepairBadge.js",
+      "target": "apps/web/src/qms/lib/injectorRepairBadge.js",
+      "sha256": "2c14dab23637ee0ff29a475780076c28986bac281ca7eb0a3cca2de5794f3203",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/injectorSelection.js",
+      "target": "apps/web/src/qms/lib/injectorSelection.js",
+      "sha256": "ac3189990a36c0f76551ae440536e90de10027e7449291e71d08915cdfb559c8",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/itemCompletion.js",
+      "target": "apps/web/src/qms/lib/itemCompletion.js",
+      "sha256": "49ddf0704cf9ca3af64753f3a02d1c74b3a9112803c90ab57ad1275a2b9e52d7",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/msalConfig.js",
+      "target": "apps/web/src/qms/lib/msalConfig.js",
+      "sha256": "9ba1d803644c540512c8c005be0dfdab58369e56b58be3fc202038640e6e9aca",
+      "boundary": true
+    },
+    {
+      "source": "client/src/lib/nav.js",
+      "target": "apps/web/src/qms/lib/nav.js",
+      "sha256": "e6cff130bb26a43a49a269692ba2503f89c585124cc08ddb00fe24bdc34b32b8",
+      "boundary": true
+    },
+    {
+      "source": "client/src/lib/ncrReport.js",
+      "target": "apps/web/src/qms/lib/ncrReport.js",
+      "sha256": "5fe179842e845769f84783641073ae4b81f16d3abefd009d8800b42d52b7edbf",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/sections.js",
+      "target": "apps/web/src/qms/lib/sections.js",
+      "sha256": "7416e65ceab62039c42d5b037e79bea5bb4240af42008ac04d4f999f267e42d4",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/syncStatus.js",
+      "target": "apps/web/src/qms/lib/syncStatus.js",
+      "sha256": "7e805621c92f346c142550a1af4c3294f311514c5d64f8a468c73cef04f2ba08",
+      "boundary": false
+    },
+    {
+      "source": "client/src/lib/utils.js",
+      "target": "apps/web/src/qms/lib/utils.js",
+      "sha256": "37f1c1ad0710b873361c7198968d46421d9eae3b2e897acc65981050be1fe2d9",
+      "boundary": false
+    },
+    {
+      "source": "client/src/main.jsx",
+      "target": "apps/web/src/qms/main.jsx",
+      "sha256": "b8d6f14cfe44eb9081d3d374c0f215163a4fc6cd17c9060457816e457bf14001",
+      "boundary": true
+    },
+    {
+      "source": "client/src/pages/Admin.jsx",
+      "target": "apps/web/src/qms/pages/Admin.jsx",
+      "sha256": "9d4a1bf09ac131f27178e1944bba46d8eb7fd2a6c30dab5e01315e7567c4f262",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/CustomInspectionBuilder.jsx",
+      "target": "apps/web/src/qms/pages/CustomInspectionBuilder.jsx",
+      "sha256": "549e28a861cab981bf2004a850c8307aec9cbf5f156bdcd91d8ff750a581f9f7",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/Dashboard.jsx",
+      "target": "apps/web/src/qms/pages/Dashboard.jsx",
+      "sha256": "c32dbfadb167bebf6684872cda2caaeed3acdd61f11f9e39e1f3b5a9a533106f",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/Drawings.jsx",
+      "target": "apps/web/src/qms/pages/Drawings.jsx",
+      "sha256": "fa358bce6d543711399bc75c4af1a52775e5344c5fc168dbb6e67658004e55b8",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/InjectorReports.jsx",
+      "target": "apps/web/src/qms/pages/InjectorReports.jsx",
+      "sha256": "90cf44c6fcdd4d36f90a33a23bdedf5b17a9bdb735919aaa9a0877c5a2db9339",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/InjectorTests.jsx",
+      "target": "apps/web/src/qms/pages/InjectorTests.jsx",
+      "sha256": "816386ba386d870a417d1127e67c042f4d4f3f02a758100f86ae63a7cbfb4b54",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/InspectionDetail.jsx",
+      "target": "apps/web/src/qms/pages/InspectionDetail.jsx",
+      "sha256": "14484360c8239e45bccf4eb5de65b6dda9c1479fe6ad9031ec80d8408fb21abd",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/InspectionForm.jsx",
+      "target": "apps/web/src/qms/pages/InspectionForm.jsx",
+      "sha256": "17c1226676d0a0affd4d30e52e48686cf0b44a89704b618dd41a1afe2573fab4",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/InspectionList.jsx",
+      "target": "apps/web/src/qms/pages/InspectionList.jsx",
+      "sha256": "880fb4dfabfbac7db2913c033867390743a2c10cba1410f8404cdf945e1c9e4b",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/Login.jsx",
+      "target": "apps/web/src/qms/pages/Login.jsx",
+      "sha256": "72ce8d9b3cf33c87a89d31b5f93da3a02473646a609aa4ce8e836fca3a309cd3",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/MiscInspectionBuilder.jsx",
+      "target": "apps/web/src/qms/pages/MiscInspectionBuilder.jsx",
+      "sha256": "f9043aa70bcb19aa5dcd328c69929f7d280e1d50ec8c5b89a7eacb12e48ce671",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/MyInspections.jsx",
+      "target": "apps/web/src/qms/pages/MyInspections.jsx",
+      "sha256": "67275de1127b428ab8ae1252a97882a2c2341939daa4bb42f1d9bfbd476f6b54",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/NCREditor.jsx",
+      "target": "apps/web/src/qms/pages/NCREditor.jsx",
+      "sha256": "bbe6db60f57b0620845f52203eaf8ed58f26f95461482d8df774e18221b2d59a",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/NCRList.jsx",
+      "target": "apps/web/src/qms/pages/NCRList.jsx",
+      "sha256": "34f3856c8bdd6acb6d559b9558b724aff02bdbc0d011bce17f0666c96e836740",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/NCRView.jsx",
+      "target": "apps/web/src/qms/pages/NCRView.jsx",
+      "sha256": "052b049996b7a0b8897be42254cb9c371c16d2388ee0756b38be75978475beff",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/NewInspection.jsx",
+      "target": "apps/web/src/qms/pages/NewInspection.jsx",
+      "sha256": "e9c96cec1bd913a4e611c156b22c86e07809e322db2e6d8ab5bf8901f4f39650",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/NotFound.jsx",
+      "target": "apps/web/src/qms/pages/NotFound.jsx",
+      "sha256": "cd2a640f79276dd482487e1857c14fadcbdedb3cfc867b2ac541acd1e052a5c2",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/QualityAlerts.jsx",
+      "target": "apps/web/src/qms/pages/QualityAlerts.jsx",
+      "sha256": "3cbc450039bf0e1ce840137b6c2a266ae9d83f631f391b6d8c69f91e1cda5699",
+      "boundary": false
+    },
+    {
+      "source": "client/src/pages/Reports.jsx",
+      "target": "apps/web/src/qms/pages/Reports.jsx",
+      "sha256": "0ec8deaf91a3caa997242f570d80bcf316cf7d0d4364ea106ae52c8ed5958f9a",
+      "boundary": false
+    },
+    {
+      "source": "client/tailwind.config.js",
+      "target": "apps/web/tailwind.reference.js",
+      "sha256": "480acdf19daa2460c61de550eeb3f08804738f0b52c0fd6a905fa33d4a0d9ce4",
+      "boundary": false
+    },
+    {
+      "source": "client/src/index.css",
+      "target": "apps/web/src/app/globals.css",
+      "sha256": "c5cfa6ed8c83efc8b2c6acb314ba6a8d2f01c4e8730ac75c532864544ff2886a",
+      "boundary": false
+    },
+    {
+      "source": "client/public/pdi-logo.png",
+      "target": "apps/web/public/pdi-logo.png",
+      "sha256": "55da08d0784ec6946df2d232549d2b49480c7d544a66fb23e241cd98b961041c",
+      "boundary": false
+    }
+  ],
+  "boundaries": {
+    "lib/api.js": "Original API envelope translated to cookie/CSRF requests; errors and authenticated downloads retain the original contract.",
+    "lib/auth.js": "SQMS session state in memory; no stored bearer credential.",
+    "lib/msalConfig.js": "Local login as authorized; Entra remains deferred.",
+    "lib/nav.js": "Original navigation retained in order; additional SQMS modules appended.",
+    "main.jsx": "Hosted by the Next client entry with original query and toast defaults."
+  }
+}

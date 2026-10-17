@@ -50,8 +50,8 @@ export class UsersAdminService {
 
   // ------------------------------------------------------------------ users
 
-  async createLocal(actor: Actor, dto: CreateLocalUserDto) {
-    const violation = passwordPolicyViolation(dto.password); if (violation) throw new BusinessRuleError(violation);
+  async createLocal(actor: Actor, dto: CreateLocalUserDto, policy: 'standard' | 'operational' = 'standard') {
+    const violation = policy === 'operational' ? typeof dto.password !== 'string' || dto.password.length < 8 || dto.password.length > 256 ? 'Password must be 8–256 characters' : null : passwordPolicyViolation(dto.password); if (violation) throw new BusinessRuleError(violation);
     const email = dto.email.trim().toLowerCase();
     const passwordHash = await hashPassword(dto.password);
     try {

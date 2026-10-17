@@ -66,6 +66,8 @@ model Organization {
 }
 
 model User {
+  /// Original operational page allow-list; permissions remain enforced by the API.
+  legacyPermissions Json?
   assignedIncomingInspections IncomingInspection[] @relation("IncomingAssignee")
   createdIncomingInspections IncomingInspection[] @relation("IncomingCreator")
   completedIncomingInspections IncomingInspection[] @relation("IncomingCompleter")

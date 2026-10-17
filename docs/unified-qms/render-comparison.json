@@ -1,0 +1,171 @@
+{
+  "reference": "A-PDI/QMS-Development@9e534177cc4ebf08e559179bbb2af0b825313ec7",
+  "method": "Original React 18 reference and Next integration, same browser, local font files, identical fictional empty-list responses; desktop 1440x900 and mobile 390x900. No operational data.",
+  "results": [
+    {
+      "capture": "1440-admin",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-dashboard",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-drawings",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-injector-reports",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-injector-tests",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-inspections-new",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-inspections",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-login",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-ncrs-new",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-ncrs",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "1440-reports",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 1296000,
+      "bounds": null
+    },
+    {
+      "capture": "390-admin",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-dashboard",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-drawings",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-injector-reports",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-injector-tests",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-inspections-new",
+      "pixelsDifferent": 939,
+      "pixelsDifferentByMoreThan10": 860,
+      "totalPixels": 351000,
+      "bounds": [
+        33,
+        324,
+        215,
+        339
+      ]
+    },
+    {
+      "capture": "390-inspections",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-login",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-ncrs-new",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-ncrs",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    },
+    {
+      "capture": "390-reports",
+      "pixelsDifferent": 0,
+      "pixelsDifferentByMoreThan10": 0,
+      "totalPixels": 351000,
+      "bounds": null
+    }
+  ],
+  "browserErrors": [],
+  "limitations": [
+    "Empty-list fixture comparisons do not establish every dialog, populated inspection type or operational workflow.",
+    "Mobile New Inspection has a native-select text rasterization difference in a 182x15-pixel area; the source and CSS match.",
+    "The added SQMS navigation entries are hidden by the fixture permission list to compare the original menu."
+  ]
+}

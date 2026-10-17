@@ -79,7 +79,7 @@ export class AuthService {
 
   async me(actor: Actor) {
     const [user, branding] = await Promise.all([
-      this.db.client.user.findUniqueOrThrow({ where: { id: actor.userId }, select: { id: true, email: true, displayName: true, timezone: true, jobTitle: true, department: true, phone: true, lastLoginAt: true } }),
+      this.db.client.user.findUniqueOrThrow({ where: { id: actor.userId }, select: { id: true, email: true, displayName: true, timezone: true, jobTitle: true, department: true, phone: true, lastLoginAt: true, legacyPermissions: true } }),
       this.settings.get<Record<string, unknown>>("branding", {}),
     ]);
     return {
@@ -136,8 +136,8 @@ export class AuthService {
     return count;
   }
 
-  async changePassword(actor: Actor, current: string, next: string): Promise<void> {
-    const violation = passwordPolicyViolation(next);
+  async changePassword(actor: Actor, current: string, next: string, policy: 'standard' | 'operational' = 'standard'): Promise<void> {
+    const violation = policy === 'operational' ? typeof next !== 'string' || next.length < 8 || next.length > 256 ? 'Password must be 8–256 characters' : null : passwordPolicyViolation(next);
     if (violation) throw new BusinessRuleError(violation);
     const user = await this.db.client.user.findUniqueOrThrow({ where: { id: actor.userId } });
     if (!user.passwordHash || !(await verifyPassword(user.passwordHash, current))) {

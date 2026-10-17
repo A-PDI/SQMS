@@ -61,6 +61,8 @@ export class EvidenceService {
             ? `item${context.itemPosition}__${sectionKey}`
             : (sectionKey ?? null);
         images.push({
+          id: att.id,
+          sort_order: context.sortOrder ?? 0,
           file_path: filePath,
           file_name: att.file.originalFilename,
           mime_type: att.file.contentType,

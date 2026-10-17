@@ -16,7 +16,7 @@ export class CarbonZappService {
     @Inject(APP_ENV) private readonly env: AppEnv,
     private readonly injectors: InjectorService,
   ) {}
-  async sync(actor: Actor, dateFrom?: string) {
+  async sync(actor: Actor, dateFrom?: string, credential?: string) {
     if (!["test-safe", "live"].includes(this.env.CARBONZAPP_MODE))
       throw new ConflictError(
         "Bench transport is disabled; use recorded responses for acceptance testing",
@@ -25,7 +25,8 @@ export class CarbonZappService {
       this.env.CARBONZAPP_MODE === "live"
         ? "https://cloudx.carbonzapp.com/userapi/v1/client/getReports"
         : this.env.CARBONZAPP_TEST_URL!;
-    if (!this.env.CARBONZAPP_API_KEY)
+    const apiKey = credential ?? this.env.CARBONZAPP_API_KEY;
+    if (!apiKey)
       throw new BusinessRuleError(
         "CarbonZapp credential is not configured in the deployment environment",
       );
@@ -43,10 +44,10 @@ export class CarbonZappService {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            Authorization: `Bearer ${this.env.CARBONZAPP_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            api_key: this.env.CARBONZAPP_API_KEY,
+            api_key: apiKey,
             ...(cursor ? { date_from: cursor } : {}),
           }),
           signal: AbortSignal.timeout(this.env.CARBONZAPP_TIMEOUT_MS),
@@ -114,6 +115,8 @@ export class CarbonZappService {
       truncated,
       cursor,
       sourceDeletionsPropagated: false,
+      sourceRowCount: reports.size,
+      sourceReportIds: [...new Set([...reports.values()].map(r => String(r._id)))],
     };
   }
 }

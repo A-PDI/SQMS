@@ -1,4 +1,2 @@
-import { InjectorTests } from "@/components/operations/injectors";
-export default function Page() {
-  return <InjectorTests />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect('/injector-tests'); }

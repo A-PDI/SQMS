@@ -108,6 +108,7 @@ export class NewRepairDto {
   failureCategories: string[];
 }
 export class RepairAttemptDto extends OperationsVersionDto {
+  @IsOptional() @IsString() @MaxLength(200) technician?: string;
   @IsUUID() beforeTestId: string;
   @IsDateOnly() repairDate: string;
   @IsString() @MinLength(3) @MaxLength(20000) diagnosis: string;

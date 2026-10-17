@@ -21,7 +21,8 @@
     "db:seed:demo": "pnpm --filter @sqms/api run seed:demo",
     "dev:api": "pnpm --filter @sqms/api run dev",
     "dev:worker": "pnpm --filter @sqms/worker run dev",
-    "dev:web": "pnpm --filter @sqms/web run dev"
+    "dev:web": "pnpm --filter @sqms/web run dev",
+    "verify:qms-source": "node apps/web/scripts/verify-source.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

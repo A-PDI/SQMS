@@ -471,7 +471,7 @@ export class InjectorService {
       ),
       deltas: cases.flatMap((c) =>
         c.attempts.flatMap((a) =>
-          (a.deltas as JsonObject[]).map((d) => ({
+          ((a.deltas ?? []) as JsonObject[]).map((d) => ({
             ...d,
             repair_attempt_id: a.id,
             step_key: d.key ?? d.step_key,
@@ -717,7 +717,7 @@ export class InjectorService {
         buildExportModel(rows, { vendorName: dto.vendorName }),
       );
       return {
-        buffer: Buffer.from(await book.xlsx.writeBuffer()),
+        buffer: Buffer.from(book),
         filename: "InjectorTests.xlsx",
         contentType:
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -855,6 +855,13 @@ export class InjectorService {
     );
     if (resolve(left.serialNumber) !== resolve(right.serialNumber))
       throw new BusinessRuleError("Serial identity is different or ambiguous");
+  }
+  async openRepairWithAttempt(actor: Actor, dto: NewRepairDto, attempt: Omit<RepairAttemptDto, 'expectedVersion' | 'beforeTestId'>) {
+    return this.db.tx(async tx => {
+      const c = await this.openRepairIn(tx,actor,dto);
+      await this.addAttemptIn(tx,actor,c.id,{ ...attempt, expectedVersion:c.version, beforeTestId:dto.testId });
+      return c;
+    });
   }
   async openRepair(actor: Actor, dto: NewRepairDto) {
     return this.db.tx((tx) => this.openRepairIn(tx, actor, dto));
@@ -994,7 +1001,7 @@ export class InjectorService {
         beforeSnapshot: json(presentTest(test)),
         repairDate,
         technicianId: actor.userId,
-        technician: actor.displayName,
+        technician: dto.technician?.trim() || actor.displayName,
         diagnosis: dto.diagnosis,
         hypothesis: dto.hypothesis,
         expectedOutcome: dto.expectedOutcome,
