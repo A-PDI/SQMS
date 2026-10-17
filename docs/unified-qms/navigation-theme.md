@@ -2,6 +2,8 @@
 
 The latest user direction replaces exact duplication of the old application layout with SQMS-style organization. The original inspection, NCR and injector workflow pages stay in place; the shared layout is the deliberate exception to source duplication.
 
+The subsequent [engineering workspace refinement](engineering-workspace.md) tightens spacing and controls while retaining PDI color and accents. Its previews supersede the earlier captures below.
+
 ## Design
 
 - One shared sidebar/header for the original operational screens and native SQMS modules.

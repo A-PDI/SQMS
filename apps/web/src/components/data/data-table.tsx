@@ -1,14 +1,36 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, ChevronLeft, ChevronRight, Download, Search, X } from "lucide-react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Bookmark,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Search,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState, ErrorAlert, Skeleton } from "@/components/ui/feedback";
 import { Input, Select, type Option } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -23,6 +45,8 @@ export interface Column<T> {
   /** API sort field (must be allowed by the endpoint). */
   sortKey?: string;
   className?: string;
+  /** Long descriptions may wrap; identifiers and short values stay on one line. */
+  wrap?: boolean;
 }
 
 export interface FilterDef {
@@ -32,6 +56,7 @@ export interface FilterDef {
 }
 
 interface Props<T> {
+  tableLabel?: string;
   endpoint: string;
   queryKey: string;
   columns: Column<T>[];
@@ -51,9 +76,21 @@ interface Props<T> {
   compact?: boolean;
 }
 
-
 function DataTableInner<T extends { id: string }>(props: Props<T>) {
-  const { endpoint, queryKey, columns, filters = [], baseQuery, exportPath, savedViewsModule, rowHref, searchPlaceholder = "Search", emptyTitle = "No records found", emptyDescription, toolbar } = props;
+  const {
+    endpoint,
+    queryKey,
+    columns,
+    filters = [],
+    baseQuery,
+    exportPath,
+    savedViewsModule,
+    rowHref,
+    searchPlaceholder = "Search",
+    emptyTitle = "No records found",
+    emptyDescription,
+    toolbar,
+  } = props;
   const router = useRouter();
   const pathname = usePathname();
   const urlParams = useSearchParams();
@@ -61,7 +98,10 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
   const syncUrl = props.syncUrl !== false;
   const params = syncUrl ? urlParams : localParams;
   const navigate = (sp: URLSearchParams) => {
-    if (syncUrl) router.replace(`${pathname}${sp.toString() ? `?${sp}` : ""}`, { scroll: false });
+    if (syncUrl)
+      router.replace(`${pathname}${sp.toString() ? `?${sp}` : ""}`, {
+        scroll: false,
+      });
     else setLocalParams(new URLSearchParams(sp));
   };
   const { can } = useSession();
@@ -86,7 +126,10 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
   const [search, setSearch] = useState(state.q);
   useEffect(() => setSearch(state.q), [state.q]);
 
-  const update = (patch: Record<string, string | number | undefined | null>, resetPage = true) => {
+  const update = (
+    patch: Record<string, string | number | undefined | null>,
+    resetPage = true,
+  ) => {
     const sp = new URLSearchParams(params.toString());
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === null || v === "") sp.delete(k);
@@ -96,26 +139,65 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
     navigate(sp);
   };
 
-  const query = { ...baseQuery, ...state.filters, page: state.page, pageSize: state.pageSize, q: state.q || undefined, sort: state.sort || undefined, order: state.order };
-  const list = useQuery({ queryKey: [queryKey, query, endpoint], queryFn: () => api<Page<T>>(endpoint, { query }), placeholderData: keepPreviousData });
+  const query = {
+    ...baseQuery,
+    ...state.filters,
+    page: state.page,
+    pageSize: state.pageSize,
+    q: state.q || undefined,
+    sort: state.sort || undefined,
+    order: state.order,
+  };
+  const list = useQuery({
+    queryKey: [queryKey, query, endpoint],
+    queryFn: () => api<Page<T>>(endpoint, { query }),
+    placeholderData: keepPreviousData,
+  });
 
   const views = useQuery({
     queryKey: ["saved-views", savedViewsModule],
-    queryFn: () => api<{ id: string; name: string; filters: Record<string, string>; sort: string | null; isShared: boolean; user: { displayName: string } }[]>("/saved-views", { query: { module: savedViewsModule } }),
+    queryFn: () =>
+      api<
+        {
+          id: string;
+          name: string;
+          filters: Record<string, string>;
+          sort: string | null;
+          isShared: boolean;
+          user: { displayName: string };
+        }[]
+      >("/saved-views", { query: { module: savedViewsModule } }),
     enabled: !!savedViewsModule,
   });
   const saveView = useMutation({
-    mutationFn: (name: string) => api("/saved-views", { method: "POST", body: { module: savedViewsModule, name, filters: { ...state.filters, ...(state.q ? { q: state.q } : {}) }, sort: state.sort ? `${state.sort}:${state.order ?? "desc"}` : undefined } }),
+    mutationFn: (name: string) =>
+      api("/saved-views", {
+        method: "POST",
+        body: {
+          module: savedViewsModule,
+          name,
+          filters: { ...state.filters, ...(state.q ? { q: state.q } : {}) },
+          sort: state.sort
+            ? `${state.sort}:${state.order ?? "desc"}`
+            : undefined,
+        },
+      }),
     onSuccess: () => {
       toast.success("View saved");
-      void qc.invalidateQueries({ queryKey: ["saved-views", savedViewsModule] });
+      void qc.invalidateQueries({
+        queryKey: ["saved-views", savedViewsModule],
+      });
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
 
-  const applyView = (v: { filters: Record<string, string>; sort: string | null }) => {
+  const applyView = (v: {
+    filters: Record<string, string>;
+    sort: string | null;
+  }) => {
     const sp = new URLSearchParams();
-    for (const [k, val] of Object.entries(v.filters)) if (val) sp.set(k, String(val));
+    for (const [k, val] of Object.entries(v.filters))
+      if (val) sp.set(k, String(val));
     if (v.sort) {
       const [s, o] = v.sort.split(":");
       sp.set("sort", s);
@@ -135,7 +217,7 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
 
   return (
     <Card>
-      <div className="flex flex-wrap items-center gap-2 border-b p-3">
+      <div className="flex flex-wrap items-center gap-2 border-b bg-pdi-frost/20 p-3">
         <form
           className="relative w-full max-w-xs"
           onSubmit={(e) => {
@@ -143,14 +225,32 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
             update({ q: search.trim() });
           }}
         >
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={searchPlaceholder} className="pl-8" aria-label="Search list" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={searchPlaceholder}
+            className="pl-8"
+            aria-label="Search list"
+          />
         </form>
         {filters.map((f) => (
-          <Select key={f.key} aria-label={f.label} className="h-9 w-auto min-w-36" value={state.filters[f.key] ?? ""} onChange={(e) => update({ [f.key]: e.target.value })} options={f.options} placeholder={`${f.label}: all`} />
+          <Select
+            key={f.key}
+            aria-label={f.label}
+            className="h-9 w-auto min-w-36"
+            value={state.filters[f.key] ?? ""}
+            onChange={(e) => update({ [f.key]: e.target.value })}
+            options={f.options}
+            placeholder={`${f.label}: all`}
+          />
         ))}
         {activeFilters > 0 && (
-          <Button variant="ghost" size="sm" onClick={() => navigate(new URLSearchParams())}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(new URLSearchParams())}
+          >
             <X /> Clear
           </Button>
         )}
@@ -165,11 +265,17 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuLabel>Saved views</DropdownMenuLabel>
-                {(views.data ?? []).length === 0 && <DropdownMenuItem disabled>No saved views</DropdownMenuItem>}
+                {(views.data ?? []).length === 0 && (
+                  <DropdownMenuItem disabled>No saved views</DropdownMenuItem>
+                )}
                 {(views.data ?? []).map((v) => (
                   <DropdownMenuItem key={v.id} onSelect={() => applyView(v)}>
                     {v.name}
-                    {v.isShared && <span className="ml-auto text-[10px] text-muted-foreground">shared</span>}
+                    {v.isShared && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">
+                        shared
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
@@ -186,7 +292,14 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
           )}
           {exportPath && can("report:export") && (
             <Button variant="outline" size="sm" asChild>
-              <a href={csvUrl(exportPath, { ...baseQuery, ...state.filters, q: state.q || undefined })} download>
+              <a
+                href={csvUrl(exportPath, {
+                  ...baseQuery,
+                  ...state.filters,
+                  q: state.q || undefined,
+                })}
+                download
+              >
                 <Download /> CSV
               </a>
             </Button>
@@ -198,15 +311,39 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
           <ErrorAlert error={list.error} />
         </div>
       ) : (
-        <Table>
+        <Table aria-label={props.tableLabel ?? "Records"}>
           <THead>
             <tr>
               {columns.map((c) => (
-                <TH key={c.key} className={c.className}>
+                <TH
+                  key={c.key}
+                  className={c.className}
+                  aria-sort={
+                    c.sortKey
+                      ? state.sort === c.sortKey
+                        ? state.order === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                      : undefined
+                  }
+                >
                   {c.sortKey ? (
-                    <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort(c.sortKey!)} aria-label={`Sort by ${c.header}`}>
+                    <button
+                      className="inline-flex items-center gap-1 hover:text-foreground"
+                      onClick={() => toggleSort(c.sortKey!)}
+                      aria-label={`Sort by ${c.header}`}
+                    >
                       {c.header}
-                      {state.sort === c.sortKey ? state.order === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" /> : <ArrowUpDown className="size-3 opacity-40" />}
+                      {state.sort === c.sortKey ? (
+                        state.order === "asc" ? (
+                          <ArrowUp className="size-3" />
+                        ) : (
+                          <ArrowDown className="size-3" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="size-3 opacity-40" />
+                      )}
                     </button>
                   ) : (
                     c.header
@@ -227,11 +364,35 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
                 </TR>
               ))}
             {data?.items.map((row) => (
-              <TR key={row.id} className={cn(rowHref && "cursor-pointer")} onClick={rowHref ? (e) => e.currentTarget.contains(e.target as Node) && !(e.target as HTMLElement).closest("a,button,input,textarea,select,label") && router.push(rowHref(row)) : undefined}>
+              <TR
+                key={row.id}
+                className={cn(rowHref && "cursor-pointer")}
+                onClick={
+                  rowHref
+                    ? (e) =>
+                        e.currentTarget.contains(e.target as Node) &&
+                        !(e.target as HTMLElement).closest(
+                          "a,button,input,textarea,select,label",
+                        ) &&
+                        router.push(rowHref(row))
+                    : undefined
+                }
+              >
                 {columns.map((c, i) => (
-                  <TD key={c.key} className={c.className}>
+                  <TD
+                    key={c.key}
+                    className={cn(
+                      c.wrap
+                        ? "min-w-56 max-w-md whitespace-normal"
+                        : "whitespace-nowrap",
+                      c.className,
+                    )}
+                  >
                     {i === 0 && rowHref ? (
-                      <Link href={rowHref(row)} className="font-medium text-accent hover:underline">
+                      <Link
+                        href={rowHref(row)}
+                        className="font-medium text-pdi-navy underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pdi-teal"
+                      >
                         {c.cell(row)}
                       </Link>
                     ) : (
@@ -244,22 +405,53 @@ function DataTableInner<T extends { id: string }>(props: Props<T>) {
           </TBody>
         </Table>
       )}
-      {data && data.items.length === 0 && <EmptyState title={emptyTitle} description={activeFilters ? "Try clearing filters or changing the search." : emptyDescription} />}
+      {data && data.items.length === 0 && (
+        <EmptyState
+          title={emptyTitle}
+          description={
+            activeFilters
+              ? "Try clearing filters or changing the search."
+              : emptyDescription
+          }
+        />
+      )}
       {data && data.total > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
           <span>
-            {(data.page - 1) * data.pageSize + 1}-{Math.min(data.total, data.page * data.pageSize)} of {data.total}
+            {(data.page - 1) * data.pageSize + 1}-
+            {Math.min(data.total, data.page * data.pageSize)} of {data.total}
             {list.isFetching && " · refreshing"}
           </span>
           <div className="flex items-center gap-2">
-            <Select aria-label="Rows per page" className="h-8 w-auto" value={String(state.pageSize)} onChange={(e) => update({ pageSize: e.target.value })} options={["10", "25", "50", "100"].map((v) => ({ value: v, label: `${v} / page` }))} />
-            <Button variant="outline" size="icon" disabled={state.page <= 1} onClick={() => update({ page: state.page - 1 }, false)} aria-label="Previous page">
+            <Select
+              aria-label="Rows per page"
+              className="h-8 w-auto"
+              value={String(state.pageSize)}
+              onChange={(e) => update({ pageSize: e.target.value })}
+              options={["10", "25", "50", "100"].map((v) => ({
+                value: v,
+                label: `${v} / page`,
+              }))}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={state.page <= 1}
+              onClick={() => update({ page: state.page - 1 }, false)}
+              aria-label="Previous page"
+            >
               <ChevronLeft />
             </Button>
             <span>
               Page {state.page} of {pages}
             </span>
-            <Button variant="outline" size="icon" disabled={state.page >= pages} onClick={() => update({ page: state.page + 1 }, false)} aria-label="Next page">
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={state.page >= pages}
+              onClick={() => update({ page: state.page + 1 }, false)}
+              aria-label="Next page"
+            >
               <ChevronRight />
             </Button>
           </div>
@@ -277,5 +469,16 @@ export function DataTable<T extends { id: string }>(props: Props<T>) {
   );
 }
 
-export const opts = (values: readonly string[], label?: (v: string) => string): Option[] => values.map((v) => ({ value: v, label: label ? label(v) : v.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) }));
-
+export const opts = (
+  values: readonly string[],
+  label?: (v: string) => string,
+): Option[] =>
+  values.map((v) => ({
+    value: v,
+    label: label
+      ? label(v)
+      : v
+          .replace(/_/g, " ")
+          .toLowerCase()
+          .replace(/^\w/, (c) => c.toUpperCase()),
+  }));

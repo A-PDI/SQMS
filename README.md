@@ -2,6 +2,8 @@
 
 The shared interface combines [SQMS navigation with the QMS-Development theme](docs/unified-qms/navigation-theme.md). Existing operational workflow pages follow the [QMS-Development reference port](docs/unified-qms/source-parity.md) and remain checksum-verified during the web build.
 
+The [engineering workspace](docs/unified-qms/engineering-workspace.md) defines the compact control scale, responsive tables and PDI color accents used by the current interface.
+
 The unified internal PDI QMS candidate adds incoming inspections, connected NCR/recurrence workflows, injector testing and repairs, drawings, reporting and repeatable legacy migration. Start with the [implementation and acceptance package](docs/unified-qms/README.md) for the feature matrix, validation evidence, administrator guidance and prepared cutover/rollback procedures. Operational cutover and confirmed Render acceptance remain separate release gates.
 
 SQMS manages how a heavy-duty diesel engine component business sources, qualifies, approves and controls products

@@ -1,6 +1,6 @@
 /* The shared shell owns safe areas for both workflow routers. */
 .shell-topbar {
-  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
   padding-left: calc(1rem + env(safe-area-inset-left, 0px));
   padding-right: calc(1rem + env(safe-area-inset-right, 0px));
 }
@@ -13,8 +13,87 @@
 }
 @media (min-width: 1024px) {
   .shell-topbar {
-    padding-left: calc(1.5rem + env(safe-area-inset-left, 0px));
-    padding-right: calc(1.5rem + env(safe-area-inset-right, 0px));
+    padding-left: calc(1.25rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(1.25rem + env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Screen-only presentation: original workflow logic and issued reports stay intact. */
+@media screen {
+  .engineering-workspace {
+    font-size: 0.875rem;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+  }
+  .engineering-workspace [data-operational-screen] :is(.rounded-xl, .rounded-2xl):not(:where(.ncr-report *)) {
+    border-radius: 0.5rem;
+  }
+  .engineering-workspace [data-operational-screen] :is(button, input, select, textarea):not([type="checkbox"], [type="radio"]):not(:where(.ncr-report *)) {
+    border-radius: 0.375rem;
+  }
+  .engineering-workspace [data-operational-screen] button[class*="active:scale-"]:active {
+    transform: none;
+  }
+  .engineering-workspace [data-operational-screen] h1:not(:where(.ncr-report *)) {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+  }
+  .engineering-workspace [data-record-list] :is(th, td) {
+    padding: 0.5rem 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .engineering-workspace [data-record-list] th {
+    text-transform: none;
+    letter-spacing: normal;
+    background: #F5F7FA;
+  }
+  .engineering-workspace [data-dashboard] .grid > button {
+    display: flex;
+    flex-direction: column;
+  }
+  .engineering-workspace [data-dashboard] .grid > button > div {
+    width: 100%;
+  }
+  .engineering-workspace [data-dashboard] .grid > button > div:last-child {
+    flex: 1;
+  }
+}
+
+/* Compact desktop density; generous targets for phones and shop-floor touchscreens. */
+@media screen and (max-width: 767px), screen and (pointer: coarse) {
+  .workspace-control,
+  .workspace-nav-group,
+  .workspace-nav-link {
+    min-height: 2.75rem;
+  }
+  .workspace-control:is(button, a) {
+    min-width: 2.75rem;
+  }
+  :is(input, select, textarea).workspace-control,
+  .engineering-workspace [data-operational-screen] :is(input, select, textarea):not([type="checkbox"], [type="radio"]) {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+  .engineering-workspace [data-operational-screen] button {
+    min-height: 2.75rem;
+  }
+}
+
+/* Preserve the original report typography in preview and when printing. */
+.engineering-workspace .ncr-report {
+  font-size: 1rem;
+  line-height: 1.5;
+  font-variant-numeric: normal;
+}
+.engineering-workspace .ncr-report .text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .engineering-workspace :is(button, a, input, select, textarea) {
+    transition: none;
   }
 }
 @media print {
